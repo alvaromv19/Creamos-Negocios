@@ -9,13 +9,12 @@ def check_password():
 
     def password_entered():
         """Chequea si la contraseña ingresada coincide con la secreta."""
-        if st.session_state["password"] == "CN-revolution": # <--- CAMBIA TU CONTRASEÑA AQUÍ
+        if st.session_state["password"] == "CN-revolution": 
             st.session_state["password_correct"] = True
-            del st.session_state["password"]  # Borra la contraseña del estado por seguridad
+            del st.session_state["password"]  
         else:
             st.session_state["password_correct"] = False
 
-    # Verifica si la contraseña ya fue validada
     if "password_correct" not in st.session_state:
         st.text_input(
             "🔑 Introduce la contraseña del equipo:", 
@@ -59,7 +58,6 @@ def cargar_datos():
         df_v['Closer'] = df_v['Closer'].fillna("Sin Asignar")
         df_v['Resultado'] = df_v['Resultado'].fillna("Pendiente")
         
-        # Clasificar Estado Simple
         def clasificar_estado(texto):
             texto = str(texto).lower()
             if "venta" in texto: return "✅ Venta"
@@ -70,12 +68,11 @@ def cargar_datos():
             return "Otro/Pendiente"
         df_v['Estado_Simple'] = df_v['Resultado'].apply(clasificar_estado)
 
-        # --- LÓGICA DE ASISTENCIA CORREGIDA ---
         def es_asistencia_valida(row):
             res = str(row['Resultado']).lower()
             if "venta" in res: return True
             if "seguimiento" in res: return True 
-            if "descalificado" in res: return True # <--- ¡ESTA ES LA CLAVE!
+            if "descalificado" in res: return True 
             if "asistió" in res and "no show" not in res: return True
             return False
         df_v['Es_Asistencia'] = df_v.apply(es_asistencia_valida, axis=1)
@@ -102,15 +99,24 @@ if df_ventas.empty:
     st.warning("Esperando datos... Revisa conexión.")
     st.stop()
 
-# --- FILTROS ---
+# --- SIDEBAR: CONFIGURACIÓN Y METAS ---
 st.sidebar.header("🎛️ Panel de Control")
 if st.sidebar.button("🔄 Actualizar Datos"):
     st.cache_data.clear()
     st.rerun()
 
+# --- SECCIÓN NUEVA: METAS DEL MES ---
+st.sidebar.markdown("---")
+st.sidebar.subheader("🎯 Metas del Mes Actual")
+meta_facturacion = st.sidebar.number_input("Meta Facturación ($)", value=10000, step=500)
+presupuesto_ads = st.sidebar.number_input("Presupuesto Ads ($)", value=3000, step=100)
+
+st.sidebar.markdown("---")
+
+# --- FILTROS ---
 filtro_tiempo = st.sidebar.selectbox(
     "Selecciona Período:",
-    ["Hoy", "Ayer", "Esta Semana", "Últimos 7 días", "Este Mes", "Últimos 30 días", "Personalizado"]
+    ["Este Mes", "Hoy", "Ayer", "Esta Semana", "Últimos 7 días", "Últimos 30 días", "Personalizado"]
 )
 
 hoy = pd.to_datetime("today").date()
@@ -129,7 +135,6 @@ elif filtro_tiempo == "Este Mes":
 elif filtro_tiempo == "Últimos 30 días":
     f_inicio, f_fin = hoy - timedelta(days=30), hoy
 else:
-    st.sidebar.markdown("---")
     f_inicio = st.sidebar.date_input("Inicio", hoy)
     f_fin = st.sidebar.date_input("Fin", hoy)
 
@@ -150,20 +155,65 @@ else:
 if closer_sel != "Todos":
     df_v_filtrado = df_v_filtrado[df_v_filtrado['Closer'] == closer_sel]
 
-# --- CÁLCULOS ---
-total_leads = len(df_v_filtrado)
-total_asistencias = df_v_filtrado['Es_Asistencia'].sum()
-ventas_cerradas = len(df_v_filtrado[df_v_filtrado['Estado_Simple'] == "✅ Venta"])
-
+# --- CÁLCULOS PRINCIPALES ---
 facturacion = df_v_filtrado['Monto ($)'].sum()
 inversion_ads = df_g_filtrado['Gasto'].sum() if closer_sel == "Todos" else 0
 profit = facturacion - inversion_ads 
 roas = (facturacion / inversion_ads) if inversion_ads > 0 else 0
 
+total_leads = len(df_v_filtrado)
+total_asistencias = df_v_filtrado['Es_Asistencia'].sum()
+ventas_cerradas = len(df_v_filtrado[df_v_filtrado['Estado_Simple'] == "✅ Venta"])
 tasa_asistencia = (total_asistencias / total_leads * 100) if total_leads > 0 else 0
 tasa_cierre = (ventas_cerradas / total_asistencias * 100) if total_asistencias > 0 else 0
 
+# --- LÓGICA DE PROYECCIONES ---
+# Solo mostramos proyecciones si estamos viendo "Este Mes" o un rango que incluya el mes actual
+mes_actual = hoy.month
+anio_actual = hoy.year
+dias_en_mes = (pd.Timestamp(year=anio_actual, month=mes_actual, day=1) + pd.tseries.offsets.MonthEnd(0)).day
+dia_hoy = hoy.day
+dias_restantes = dias_en_mes - dia_hoy
+
+# Proyección Facturación
+progreso_facturacion = min(facturacion / meta_facturacion, 1.0) if meta_facturacion > 0 else 0
+faltante_facturacion = max(meta_facturacion - facturacion, 0)
+proyeccion_cierre = (facturacion / dia_hoy) * dias_en_mes if dia_hoy > 0 else 0
+
+# Proyección Gasto Ads (Budget Pacing)
+gasto_mes_total = df_gastos[
+    (df_gastos['Fecha'].dt.month == mes_actual) & 
+    (df_gastos['Fecha'].dt.year == anio_actual)
+]['Gasto'].sum()
+
+presupuesto_restante = max(presupuesto_ads - gasto_mes_total, 0)
+gasto_ideal_diario = presupuesto_restante / dias_restantes if dias_restantes > 0 else 0
+gasto_promedio_actual = gasto_mes_total / dia_hoy if dia_hoy > 0 else 0
+
 # --- VISUALES ---
+
+# 1. SECCIÓN PROYECCIONES (NUEVO)
+if filtro_tiempo == "Este Mes":
+    st.markdown("### 🎯 Proyecciones del Mes")
+    col_p1, col_p2, col_p3 = st.columns(3)
+    
+    with col_p1:
+        st.metric("Meta Facturación", f"${meta_facturacion:,.0f}")
+        st.progress(progreso_facturacion)
+        st.caption(f"Llevas el {progreso_facturacion*100:.1f}% de la meta")
+        
+    with col_p2:
+        st.metric("Falta para la Meta", f"${faltante_facturacion:,.0f}", delta=f"Proyección Cierre: ${proyeccion_cierre:,.0f}")
+        st.caption("Si sigues a este ritmo, cerrarás en esa cifra.")
+
+    with col_p3:
+        st.metric("Budget Diario Disponible", f"${gasto_ideal_diario:.0f}/día")
+        delta_gasto = gasto_ideal_diario - gasto_promedio_actual
+        st.caption(f"Estás gastando ${gasto_promedio_actual:.0f}/día (Avg)")
+
+    st.divider()
+
+# 2. FINANZAS
 st.markdown("### 💰 Estado Financiero")
 k1, k2, k3, k4 = st.columns(4)
 k1.metric("Facturación", f"${facturacion:,.0f}")
@@ -174,6 +224,7 @@ k4.metric("ROAS", f"{roas:.2f}x", delta=f"{delta_roas:.2f} vs Objetivo" if roas 
 
 st.divider()
 
+# 3. EFICIENCIA
 st.markdown("### 📞 Eficiencia Comercial")
 e1, e2, e3, e4 = st.columns(4)
 e1.metric("Total Leads", total_leads)
