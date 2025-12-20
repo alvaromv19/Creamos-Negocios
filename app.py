@@ -2,41 +2,55 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 from datetime import datetime, timedelta
+import json
+import os
 
-# --- BLOQUE DE SEGURIDAD (CONTRASEÑA) ---
-def check_password():
-    """Retorna `True` si el usuario tiene la contraseña correcta."""
+# --- PANTALLA DE BIENVENIDA (LANDING PAGE) ---
+def pantalla_bienvenida():
+    # 1. Inicializamos el estado si no existe
+    if "ingreso_confirmado" not in st.session_state:
+        st.session_state["ingreso_confirmado"] = False
 
-    def password_entered():
-        """Chequea si la contraseña ingresada coincide con la secreta."""
-        if st.session_state["password"] == "CN-revolution": 
-            st.session_state["password_correct"] = True
-            del st.session_state["password"]  
-        else:
-            st.session_state["password_correct"] = False
-
-    if "password_correct" not in st.session_state:
-        st.text_input(
-            "🔑 Introduce la contraseña del equipo:", 
-            type="password", 
-            on_change=password_entered, 
-            key="password"
-        )
-        return False
-    elif not st.session_state["password_correct"]:
-        st.text_input(
-            "🔑 Introduce la contraseña del equipo:", 
-            type="password", 
-            on_change=password_entered, 
-            key="password"
-        )
-        st.error("😕 Contraseña incorrecta")
-        return False
-    else:
+    # 2. Si el usuario ya entró antes, retornamos True para mostrar el dashboard
+    if st.session_state["ingreso_confirmado"]:
         return True
 
-if not check_password():
+    # 3. Diseño de la Pantalla de Bienvenida (Centrado)
+    col1, col2, col3 = st.columns([1, 2, 1]) # Usamos columnas para centrar
+
+    with col2:
+        st.markdown("<br><br>", unsafe_allow_html=True) # Espacio vertical
+        st.title("🚀 Bienvenido al Dashboard")
+        st.subheader("Creamos Negocios")
+        st.markdown("Tu centro de comando para visualizar métricas y escalar resultados.")
+        st.markdown("---")
+        
+        # 4. Botón de Ingreso
+        if st.button("Ingresar al Sistema ➡️", type="primary", use_container_width=True):
+            st.session_state["ingreso_confirmado"] = True
+            st.rerun() # Recarga la página inmediatamente para mostrar el dashboard
+
+    # 5. Retornamos False para que el código se detenga aquí
+    return False
+
+# Si la función retorna False (no ha entrado), detenemos la app.
+if not pantalla_bienvenida():
     st.stop() 
+
+# --- CONFIGURACIÓN DE METAS (PERSISTENCIA) ---
+ARCHIVO_METAS = 'metas_config.json'
+
+def cargar_metas():
+    # Intenta cargar el archivo, si no existe usa valores por defecto
+    if os.path.exists(ARCHIVO_METAS):
+        with open(ARCHIVO_METAS, 'r') as f:
+            return json.load(f)
+    return {"meta_facturacion": 10000.0, "presupuesto_ads": 3000.0}
+
+def guardar_metas_archivo(fact, ads):
+    # Guarda las nuevas metas en el archivo
+    with open(ARCHIVO_METAS, 'w') as f:
+        json.dump({"meta_facturacion": fact, "presupuesto_ads": ads}, f)
 
 # --- AQUÍ EMPIEZA TU DASHBOARD ---
 st.title("🚀 Creamos Negocios - Dashboard")
@@ -105,11 +119,22 @@ if st.sidebar.button("🔄 Actualizar Datos"):
     st.cache_data.clear()
     st.rerun()
 
-# --- SECCIÓN NUEVA: METAS DEL MES ---
+# --- SECCIÓN: METAS PERSISTENTES ---
 st.sidebar.markdown("---")
-st.sidebar.subheader("🎯 Metas del Mes Actual")
-meta_facturacion = st.sidebar.number_input("Meta Facturación ($)", value=10000, step=500)
-presupuesto_ads = st.sidebar.number_input("Presupuesto Ads ($)", value=3000, step=100)
+st.sidebar.subheader("🎯 Configuración de Objetivos")
+
+# 1. Cargamos valores actuales
+metas_actuales = cargar_metas()
+
+# 2. Inputs para modificar
+meta_facturacion = st.sidebar.number_input("Meta Facturación ($)", value=float(metas_actuales["meta_facturacion"]), step=500.0)
+presupuesto_ads = st.sidebar.number_input("Presupuesto Ads ($)", value=float(metas_actuales["presupuesto_ads"]), step=100.0)
+
+# 3. Botón de Guardar
+if st.sidebar.button("💾 Guardar Objetivos"):
+    guardar_metas_archivo(meta_facturacion, presupuesto_ads)
+    st.sidebar.success("¡Objetivos actualizados para todo el equipo!")
+    st.rerun() # Recarga la página para aplicar cambios
 
 st.sidebar.markdown("---")
 
@@ -168,7 +193,6 @@ tasa_asistencia = (total_asistencias / total_leads * 100) if total_leads > 0 els
 tasa_cierre = (ventas_cerradas / total_asistencias * 100) if total_asistencias > 0 else 0
 
 # --- LÓGICA DE PROYECCIONES ---
-# Solo mostramos proyecciones si estamos viendo "Este Mes" o un rango que incluya el mes actual
 mes_actual = hoy.month
 anio_actual = hoy.year
 dias_en_mes = (pd.Timestamp(year=anio_actual, month=mes_actual, day=1) + pd.tseries.offsets.MonthEnd(0)).day
@@ -179,6 +203,12 @@ dias_restantes = dias_en_mes - dia_hoy
 progreso_facturacion = min(facturacion / meta_facturacion, 1.0) if meta_facturacion > 0 else 0
 faltante_facturacion = max(meta_facturacion - facturacion, 0)
 proyeccion_cierre = (facturacion / dia_hoy) * dias_en_mes if dia_hoy > 0 else 0
+
+# NUEVO: Facturación Sugerida Diaria (Para alcanzar la meta)
+if dias_restantes > 0:
+    facturacion_necesaria_diaria = faltante_facturacion / dias_restantes
+else:
+    facturacion_necesaria_diaria = faltante_facturacion # Si es el último día, necesitas todo hoy
 
 # Proyección Gasto Ads (Budget Pacing)
 gasto_mes_total = df_gastos[
@@ -192,24 +222,28 @@ gasto_promedio_actual = gasto_mes_total / dia_hoy if dia_hoy > 0 else 0
 
 # --- VISUALES ---
 
-# 1. SECCIÓN PROYECCIONES (NUEVO)
+# 1. SECCIÓN PROYECCIONES (SOLO SI VEMOS "ESTE MES")
 if filtro_tiempo == "Este Mes":
-    st.markdown("### 🎯 Proyecciones del Mes")
+    st.markdown("### 🎯 Proyecciones del Mes (Pacing)")
     col_p1, col_p2, col_p3 = st.columns(3)
     
     with col_p1:
         st.metric("Meta Facturación", f"${meta_facturacion:,.0f}")
         st.progress(progreso_facturacion)
-        st.caption(f"Llevas el {progreso_facturacion*100:.1f}% de la meta")
+        st.caption(f"Progreso: {progreso_facturacion*100:.1f}%")
         
     with col_p2:
-        st.metric("Falta para la Meta", f"${faltante_facturacion:,.0f}", delta=f"Proyección Cierre: ${proyeccion_cierre:,.0f}")
-        st.caption("Si sigues a este ritmo, cerrarás en esa cifra.")
+        # Aquí agregamos la sugerencia de facturación diaria
+        st.metric("Falta para Meta", f"${faltante_facturacion:,.0f}", delta=f"Proy. Cierre: ${proyeccion_cierre:,.0f}")
+        st.info(f"💡 Debes facturar **${facturacion_necesaria_diaria:,.0f}/día** los próximos {dias_restantes} días.")
 
     with col_p3:
-        st.metric("Budget Diario Disponible", f"${gasto_ideal_diario:.0f}/día")
+        st.metric("Budget Disponible Diario", f"${gasto_ideal_diario:.0f}/día")
         delta_gasto = gasto_ideal_diario - gasto_promedio_actual
-        st.caption(f"Estás gastando ${gasto_promedio_actual:.0f}/día (Avg)")
+        if delta_gasto < 0:
+            st.warning(f"⚠️ Estás gastando ${abs(delta_gasto):.0f} de MÁS por día.")
+        else:
+            st.caption(f"Estás gastando ${gasto_promedio_actual:.0f}/día (Bien)")
 
     st.divider()
 
