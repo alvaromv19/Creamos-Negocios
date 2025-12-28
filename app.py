@@ -4,38 +4,56 @@ import plotly.express as px
 from datetime import datetime, timedelta
 import json
 import os
+# AGREGAMOS ESTA LIBRERÍA NUEVA
+import extra_streamlit_components as stx 
 
-# --- PANTALLA DE BIENVENIDA (LANDING PAGE) ---
+# --- PANTALLA DE BIENVENIDA CON COOKIES (PERSISTENTE) ---
 def pantalla_bienvenida():
-    # 1. Inicializamos el estado si no existe
-    if "ingreso_confirmado" not in st.session_state:
-        st.session_state["ingreso_confirmado"] = False
+    st.markdown("""
+        <style>
+            /* Ocultar el spinner del cookie manager para que se vea limpio */
+            .stSpinner { display:none; }
+        </style>
+    """, unsafe_allow_html=True)
 
-    # 2. Si el usuario ya entró antes, retornamos True para mostrar el dashboard
-    if st.session_state["ingreso_confirmado"]:
+    # 1. Inicializamos el Gestor de Cookies
+    cookie_manager = stx.CookieManager(key="cookie_manager_dashboard")
+    
+    # 2. Intentamos leer la cookie 'ingreso_ok'
+    # Nota: A veces tarda unos milisegundos en leer, por eso el st.spinner oculto ayuda
+    cookie_val = cookie_manager.get(cookie="ingreso_ok")
+
+    # 3. Si la cookie existe y es verdadera, retornamos True (Pasa directo)
+    if cookie_val == "true":
         return True
 
-    # 3. Diseño de la Pantalla de Bienvenida (Centrado)
-    col1, col2, col3 = st.columns([1, 2, 1]) # Usamos columnas para centrar
+    # 4. Si la sesión temporal ya dice que sí (para que no parpadee al dar click), también pasamos
+    if "ingreso_confirmado" in st.session_state and st.session_state["ingreso_confirmado"]:
+        return True
+
+    # 5. Diseño de la Pantalla de Bienvenida (Tu diseño original)
+    col1, col2, col3 = st.columns([1, 2, 1])
 
     with col2:
-        st.markdown("<br><br>", unsafe_allow_html=True) # Espacio vertical
+        st.markdown("<br><br>", unsafe_allow_html=True)
         st.title("🚀 Bienvenido al Dashboard")
         st.subheader("Creamos Negocios")
         st.markdown("Tu centro de comando para visualizar métricas y escalar resultados.")
         st.markdown("---")
         
-        # 4. Botón de Ingreso
+        # 6. Botón de Ingreso
         if st.button("Ingresar al Sistema ➡️", type="primary", use_container_width=True):
+            # A) Guardamos en session_state para la sesión actual inmediata
             st.session_state["ingreso_confirmado"] = True
-            st.rerun() # Recarga la página inmediatamente para mostrar el dashboard
+            
+            # B) Guardamos la COOKIE para el futuro (Expira en 30 días)
+            cookie_manager.set("ingreso_ok", "true", expires_at=datetime.now() + timedelta(days=30))
+            
+            # C) Recargamos
+            st.rerun()
 
-    # 5. Retornamos False para que el código se detenga aquí
-    return False
-
-# Si la función retorna False (no ha entrado), detenemos la app.
-if not pantalla_bienvenida():
-    st.stop() 
+    # 7. Retornamos False para detener la app si no ha entrado
+    return False 
 
 # --- CONFIGURACIÓN DE METAS (PERSISTENCIA) ---
 ARCHIVO_METAS = 'metas_config.json'
@@ -320,3 +338,4 @@ with tab2:
         g_dia = df_g_filtrado.groupby('Fecha')['Gasto'].sum().reset_index()
         fig_fin.add_scatter(x=g_dia['Fecha'], y=g_dia['Gasto'], mode='lines+markers', name='Gasto Ads', line=dict(color='red'))
     st.plotly_chart(fig_fin, use_container_width=True)
+
