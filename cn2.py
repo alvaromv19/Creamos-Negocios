@@ -288,19 +288,43 @@ if not df_v_filtrado.empty:
         })
     ).reset_index()
     
-    ranking['Show Rate'] = (ranking['Shows'] / ranking['Leads'] * 100).fillna(0) # Simple calculation
-    ranking['Close Rate'] = (ranking['Ventas'] / ranking['Shows'] * 100).fillna(0)
+    # Cálculos adicionales
+    ranking['Show Rate'] = (ranking['Shows'] / ranking['Leads']).fillna(0) # Lo dejamos en decimal (0.5) para que Streamlit lo formatee a %
+    ranking['Close Rate'] = (ranking['Ventas'] / ranking['Shows']).fillna(0)
     ranking['Ticket Promedio'] = (ranking['Facturado'] / ranking['Ventas']).fillna(0)
     
     ranking = ranking.sort_values('Facturado', ascending=False)
     
-    # Formateo visual de la tabla
+    # CORRECCIÓN: Usamos column_config en lugar de .style para evitar errores
     st.dataframe(
-        ranking.style.format({
-            'Facturado': '${:,.0f}',
-            'Ticket Promedio': '${:,.0f}',
-            'Show Rate': '{:.1f}%',
-            'Close Rate': '{:.1f}%'
-        }).background_gradient(subset=['Facturado'], cmap='Greens'),
-        use_container_width=True
+        ranking,
+        use_container_width=True,
+        column_order=["Closer", "Leads", "Shows", "Ventas", "Show Rate", "Close Rate", "Ticket Promedio", "Facturado"],
+        hide_index=True,
+        column_config={
+            "Closer": st.column_config.TextColumn("👤 Closer"),
+            "Leads": st.column_config.NumberColumn("📥 Leads"),
+            "Shows": st.column_config.NumberColumn("📞 Shows"),
+            "Ventas": st.column_config.NumberColumn("✅ Ventas"),
+            "Show Rate": st.column_config.ProgressColumn(
+                "Show Rate",
+                format="%.1f%%",
+                min_value=0,
+                max_value=1,
+            ),
+            "Close Rate": st.column_config.ProgressColumn(
+                "Close Rate",
+                format="%.1f%%",
+                min_value=0,
+                max_value=1,
+            ),
+            "Ticket Promedio": st.column_config.NumberColumn(
+                "Ticket Prom.",
+                format="$%d"
+            ),
+            "Facturado": st.column_config.NumberColumn(
+                "💰 Facturado",
+                format="$%d",
+            )
+        }
     )
