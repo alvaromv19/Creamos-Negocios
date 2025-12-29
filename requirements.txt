@@ -1,5 +1,4 @@
 streamlit
 pandas
-
 plotly
-pip install extra-streamlit-components
+extra-streamlit-components
