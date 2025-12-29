@@ -243,38 +243,44 @@ with c_metrics:
 
 # --- ROW 3: HEATMAP & TRENDS ---
 st.markdown("---")
-col_g1, col_g2 = st.columns([1, 1])
 
-with col_g1:
-    st.subheader("📅 Mejores Días para Cerrar")
-    if not df_v_filtrado.empty:
-        # Agrupar ventas por día de la semana
-        ventas_dia = df_v_filtrado[df_v_filtrado['Estado_Simple'] == "✅ Venta"].groupby('Dia_Semana')['Monto ($)'].sum().reindex(
-            ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
-        ).fillna(0).reset_index()
-        
-        fig_bar = px.bar(ventas_dia, x="Dia_Semana", y="Monto ($)", color="Monto ($)", 
-                         color_continuous_scale="Greens", title="Facturación por Día Semana")
-        st.plotly_chart(fig_bar, use_container_width=True)
-    else:
-        st.info("No hay datos de ventas en este período.")
+# 3.1 GRÁFICO: MEJORES DÍAS (FULL WIDTH)
+st.subheader("📅 Mejores Días para Cerrar")
+if not df_v_filtrado.empty:
+    # Agrupar ventas por día de la semana
+    ventas_dia = df_v_filtrado[df_v_filtrado['Estado_Simple'] == "✅ Venta"].groupby('Dia_Semana')['Monto ($)'].sum().reindex(
+        ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+    ).fillna(0).reset_index()
+    
+    fig_bar = px.bar(ventas_dia, x="Dia_Semana", y="Monto ($)", color="Monto ($)", 
+                     color_continuous_scale="Greens", title="Facturación Acumulada por Día")
+    
+    # Ajuste para que se vea bien extendido
+    fig_bar.update_layout(height=400) 
+    st.plotly_chart(fig_bar, use_container_width=True)
+else:
+    st.info("No hay datos de ventas en este período.")
 
-with col_g2:
-    st.subheader("📈 Tendencia Diaria")
-    if not df_v_filtrado.empty:
-        # Leads vs Ventas diario
-        diario = df_v_filtrado.groupby('Fecha').agg({
-            'Estado_Simple': 'count', # Total Leads
-            'Monto ($)': 'sum' # Facturación
-        }).rename(columns={'Estado_Simple': 'Leads'}).reset_index()
-        
-        fig_trend = px.line(diario, x='Fecha', y='Leads', title="Volumen de Leads Diario", markers=True)
-        fig_trend.add_bar(x=diario['Fecha'], y=diario['Monto ($)'], name="Facturación", yaxis="y2", opacity=0.3)
-        
-        fig_trend.update_layout(
-            yaxis2=dict(title="Facturación ($)", overlaying="y", side="right", showgrid=False)
-        )
-        st.plotly_chart(fig_trend, use_container_width=True)
+st.divider() # Separador visual
+
+# 3.2 GRÁFICO: TENDENCIA DIARIA (FULL WIDTH)
+st.subheader("📈 Tendencia Diaria de Leads y Facturación")
+if not df_v_filtrado.empty:
+    # Leads vs Ventas diario
+    diario = df_v_filtrado.groupby('Fecha').agg({
+        'Estado_Simple': 'count', # Total Leads
+        'Monto ($)': 'sum' # Facturación
+    }).rename(columns={'Estado_Simple': 'Leads'}).reset_index()
+    
+    fig_trend = px.line(diario, x='Fecha', y='Leads', title="Volumen vs. Ingresos", markers=True)
+    fig_trend.add_bar(x=diario['Fecha'], y=diario['Monto ($)'], name="Facturación", yaxis="y2", opacity=0.3)
+    
+    fig_trend.update_layout(
+        yaxis2=dict(title="Facturación ($)", overlaying="y", side="right", showgrid=False),
+        height=450, # Un poco más alto para ver detalles
+        legend=dict(orientation="h", y=1.1, x=0) # Leyenda arriba para no estorbar
+    )
+    st.plotly_chart(fig_trend, use_container_width=True)
 
 # --- ROW 4: RANKING DETALLADO ---
 st.markdown("### 🏆 Performance de Equipo")
