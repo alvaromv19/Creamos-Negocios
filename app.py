@@ -327,4 +327,12 @@ with tab1:
         ).reset_index()
         ranking['% Cierre'] = (ranking['Ventas'] / ranking['Asistencias'] * 100).fillna(0)
         ranking = ranking.sort_values('Facturado', ascending=False)
-        st.dataframe(ranking.style.format({'Facturado': '${:,.0f}', '% Cierre':
+        st.dataframe(ranking.style.format({'Facturado': '${:,.0f}', '% Cierre': '{:.1f}%'}), use_container_width=True)
+
+with tab2:
+    v_dia = df_v_filtrado.groupby('Fecha')['Monto ($)'].sum().reset_index()
+    fig_fin = px.bar(v_dia, x='Fecha', y='Monto ($)', title="Ingresos Diarios")
+    if closer_sel == "Todos" and not df_g_filtrado.empty:
+        g_dia = df_g_filtrado.groupby('Fecha')['Gasto'].sum().reset_index()
+        fig_fin.add_scatter(x=g_dia['Fecha'], y=g_dia['Gasto'], mode='lines+markers', name='Gasto Ads', line=dict(color='red'))
+    st.plotly_chart(fig_fin, use_container_width=True)
