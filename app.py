@@ -1,39 +1,22 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
 from datetime import datetime, timedelta
 import json
 import os
 import extra_streamlit_components as stx 
 
-# --- 1. CONFIGURACIÓN DE PÁGINA (ESTÉTICA PRO) ---
-st.set_page_config(
-    page_title="Agency Command Center",
-    page_icon="🚀",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
-
-# --- 2. INYECCIÓN DE CSS (BRANDING) ---
-st.markdown("""
-    <style>
-        .block-container { padding-top: 1rem; padding-bottom: 3rem; }
-        #MainMenu {visibility: hidden;}
-        footer {visibility: hidden;}
-        [data-testid="stMetricValue"] {
-            font-size: 1.8rem !important;
-            font-weight: 700;
-        }
-        .stSpinner { display:none; }
-    </style>
-""", unsafe_allow_html=True)
-
-# --- 3. SISTEMA DE COOKIES (PERSISTENCIA) ---
+# --- PANTALLA DE BIENVENIDA CON COOKIES (PERSISTENTE) ---
 def pantalla_bienvenida():
+    st.markdown("""
+        <style>
+            .stSpinner { display:none; }
+        </style>
+    """, unsafe_allow_html=True)
+
     cookie_manager = stx.CookieManager(key="cookie_manager_dashboard")
     
-    # Intentar leer cookie (con manejo de errores silencioso)
+    # Manejo de error silencioso por si las cookies tardan en cargar
     try:
         cookie_val = cookie_manager.get(cookie="ingreso_ok")
     except:
@@ -45,28 +28,25 @@ def pantalla_bienvenida():
     if "ingreso_confirmado" in st.session_state and st.session_state["ingreso_confirmado"]:
         return True
 
-    # Diseño de Landing
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        st.markdown("<br><br><br>", unsafe_allow_html=True)
-        st.title("🔒 Acceso Restringido")
-        st.subheader("Agency Command Center")
-        st.info("Sistema de monitoreo de High-Ticket Funnels.")
+        st.markdown("<br><br>", unsafe_allow_html=True)
+        st.title("🚀 Bienvenido al Dashboard")
+        st.subheader("Creamos Negocios")
+        st.markdown("Tu centro de comando para visualizar métricas y escalar resultados.")
+        st.markdown("---")
         
-        if st.button("Autenticar Acceso ➡️", type="primary", use_container_width=True):
+        if st.button("Ingresar al Sistema ➡️", type="primary", use_container_width=True):
             st.session_state["ingreso_confirmado"] = True
             try:
                 cookie_manager.set("ingreso_ok", "true", expires_at=datetime.now() + timedelta(days=30))
             except:
-                pass # Si fallan las cookies, al menos entra por sesión
+                pass 
             st.rerun()
 
-    return False
+    return False 
 
-if not pantalla_bienvenida():
-    st.stop()
-
-# --- 4. GESTIÓN DE METAS ---
+# --- CONFIGURACIÓN DE METAS (PERSISTENCIA) ---
 ARCHIVO_METAS = 'metas_config.json'
 
 def cargar_metas():
@@ -79,7 +59,10 @@ def guardar_metas_archivo(fact, ads):
     with open(ARCHIVO_METAS, 'w') as f:
         json.dump({"meta_facturacion": fact, "presupuesto_ads": ads}, f)
 
-# --- 5. CARGA DE DATOS ---
+# --- AQUÍ EMPIEZA TU DASHBOARD ---
+st.title("🚀 Creamos Negocios - Dashboard")
+
+# --- CARGA DE DATOS ---
 @st.cache_data(ttl=300) 
 def cargar_datos():
     url_ventas = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQuXaPCen61slzpr1TElxXoCROIxAgmgWT7pyWvel1dxq_Z_U1yZPrVrTbJfx9MwaL8_cluY3v2ywoB/pub?gid=0&single=true&output=csv"
@@ -96,7 +79,6 @@ def cargar_datos():
         df_v['Closer'] = df_v['Closer'].fillna("Sin Asignar")
         df_v['Resultado'] = df_v['Resultado'].fillna("Pendiente")
         
-        # Normalización de Estados
         def clasificar_estado(texto):
             texto = str(texto).lower()
             if "venta" in texto: return "✅ Venta"
@@ -107,18 +89,17 @@ def cargar_datos():
             return "Otro/Pendiente"
         df_v['Estado_Simple'] = df_v['Resultado'].apply(clasificar_estado)
 
-        # Lógica de Asistencia (Show)
         def es_asistencia_valida(row):
             res = str(row['Resultado']).lower()
-            estado = row['Estado_Simple']
-            if estado == "❌ No Show": return False
-            if estado == "📅 Re-Agendado": return False 
-            return True 
-            
+            if "venta" in res: return True
+            if "seguimiento" in res: return True 
+            if "descalificado" in res: return True 
+            if "asistió" in res and "no show" not in res: return True
+            return False
         df_v['Es_Asistencia'] = df_v.apply(es_asistencia_valida, axis=1)
-        df_v['Dia_Semana'] = df_v['Fecha'].dt.day_name()
 
     except Exception as e:
+        st.error(f"Error cargando Ventas: {e}")
         df_v = pd.DataFrame()
 
     # GASTOS
@@ -133,31 +114,54 @@ def cargar_datos():
 
     return df_v, df_g
 
+if not pantalla_bienvenida():
+    st.stop()
+
 df_ventas, df_gastos = cargar_datos()
 
 if df_ventas.empty:
-    st.error("⚠️ No se pudieron cargar los datos. Verifica la conexión con Google Sheets.")
+    st.warning("Esperando datos... Revisa conexión.")
     st.stop()
 
-# --- 6. SIDEBAR Y FILTROS ---
-st.sidebar.markdown("### 🎛️ Control Panel")
-if st.sidebar.button("🔄 Refresh Data", use_container_width=True):
+# --- SIDEBAR: CONFIGURACIÓN Y METAS ---
+st.sidebar.header("🎛️ Panel de Control")
+if st.sidebar.button("🔄 Actualizar Datos"):
     st.cache_data.clear()
     st.rerun()
 
+# --- SECCIÓN: METAS PERSISTENTES ---
 st.sidebar.markdown("---")
-# FILTRO TIEMPO (CON MES ANTERIOR)
+st.sidebar.subheader("🎯 Configuración de Objetivos")
+
+metas_actuales = cargar_metas()
+# Usamos min_value=1.0 para evitar ceros accidentales en la UI
+meta_facturacion = st.sidebar.number_input("Meta Facturación ($)", value=float(metas_actuales["meta_facturacion"]), step=500.0, min_value=1.0)
+presupuesto_ads = st.sidebar.number_input("Presupuesto Ads ($)", value=float(metas_actuales["presupuesto_ads"]), step=100.0)
+
+if st.sidebar.button("💾 Guardar Objetivos"):
+    guardar_metas_archivo(meta_facturacion, presupuesto_ads)
+    st.sidebar.success("¡Objetivos actualizados!")
+    st.rerun()
+
+st.sidebar.markdown("---")
+
+# --- FILTROS (INCLUYE MES ANTERIOR) ---
 filtro_tiempo = st.sidebar.selectbox(
-    "📅 Período:",
-    ["Este Mes", "Mes Anterior", "Esta Semana", "Hoy", "Últimos 30 días", "Personalizado"]
+    "Selecciona Período:",
+    ["Este Mes", "Mes Anterior", "Hoy", "Ayer", "Esta Semana", "Últimos 7 días", "Últimos 30 días", "Personalizado"]
 )
 
 hoy = pd.to_datetime("today").date()
 
 if filtro_tiempo == "Hoy":
     f_inicio, f_fin = hoy, hoy
+elif filtro_tiempo == "Ayer":
+    f_inicio, f_fin = hoy - timedelta(days=1), hoy - timedelta(days=1)
 elif filtro_tiempo == "Esta Semana":
-    f_inicio, f_fin = hoy - timedelta(days=hoy.weekday()), hoy
+    f_inicio = hoy - timedelta(days=hoy.weekday())
+    f_fin = hoy
+elif filtro_tiempo == "Últimos 7 días":
+    f_inicio, f_fin = hoy - timedelta(days=7), hoy
 elif filtro_tiempo == "Este Mes":
     f_inicio, f_fin = hoy.replace(day=1), hoy
 elif filtro_tiempo == "Mes Anterior":
@@ -167,161 +171,160 @@ elif filtro_tiempo == "Mes Anterior":
 elif filtro_tiempo == "Últimos 30 días":
     f_inicio, f_fin = hoy - timedelta(days=30), hoy
 else:
-    c1, c2 = st.sidebar.columns(2)
-    f_inicio = c1.date_input("Desde", hoy)
-    f_fin = c2.date_input("Hasta", hoy)
+    f_inicio = st.sidebar.date_input("Inicio", hoy)
+    f_fin = st.sidebar.date_input("Fin", hoy)
 
-# Filtro Closer
 lista_closers = ["Todos"] + sorted([c for c in df_ventas['Closer'].unique() if c])
-closer_sel = st.sidebar.selectbox("👤 Closer", lista_closers)
+closer_sel = st.sidebar.selectbox("Closer", lista_closers)
 
-st.sidebar.info(f"📅 {f_inicio} al {f_fin}")
+st.sidebar.info(f"📅 Visualizando: {f_inicio} al {f_fin}")
 
-# Aplicar Filtros
 mask_v = (df_ventas['Fecha'].dt.date >= f_inicio) & (df_ventas['Fecha'].dt.date <= f_fin)
 df_v_filtrado = df_ventas.loc[mask_v].copy()
-if closer_sel != "Todos": df_v_filtrado = df_v_filtrado[df_v_filtrado['Closer'] == closer_sel]
 
 if not df_gastos.empty:
     mask_g = (df_gastos['Fecha'].dt.date >= f_inicio) & (df_gastos['Fecha'].dt.date <= f_fin)
     df_g_filtrado = df_gastos.loc[mask_g].copy()
-else: df_g_filtrado = pd.DataFrame(columns=['Fecha', 'Gasto'])
-
-# Configuración de Metas
-st.sidebar.markdown("---")
-metas = cargar_metas()
-with st.sidebar.expander("⚙️ Configurar Objetivos"):
-    m_fact = st.number_input("Meta Facturación", value=float(metas["meta_facturacion"]))
-    m_ads = st.number_input("Presupuesto Ads", value=float(metas["presupuesto_ads"]))
-    if st.button("Guardar"):
-        guardar_metas_archivo(m_fact, m_ads)
-        st.rerun()
-
-# --- 7. KPI ENGINE (CON CORRECCIÓN DE ERRORES) ---
-facturacion = df_v_filtrado['Monto ($)'].sum()
-inversion = df_g_filtrado['Gasto'].sum() if closer_sel == "Todos" else 0
-profit = facturacion - inversion
-
-# Corrección de división por cero
-if inversion > 0:
-    roas = facturacion / inversion
 else:
-    roas = 0
+    df_g_filtrado = pd.DataFrame(columns=['Fecha', 'Gasto'])
+
+if closer_sel != "Todos":
+    df_v_filtrado = df_v_filtrado[df_v_filtrado['Closer'] == closer_sel]
+
+# --- CÁLCULOS PRINCIPALES ---
+facturacion = df_v_filtrado['Monto ($)'].sum()
+inversion_ads = df_g_filtrado['Gasto'].sum() if closer_sel == "Todos" else 0
+profit = facturacion - inversion_ads 
+roas = (facturacion / inversion_ads) if inversion_ads > 0 else 0
 
 total_leads = len(df_v_filtrado)
-ventas = len(df_v_filtrado[df_v_filtrado['Estado_Simple'] == "✅ Venta"])
-leads_calificados = len(df_v_filtrado[~df_v_filtrado['Estado_Simple'].isin(["🚫 Descalificado"])]) 
-asistencias = df_v_filtrado['Es_Asistencia'].sum()
+total_asistencias = df_v_filtrado['Es_Asistencia'].sum()
+ventas_cerradas = len(df_v_filtrado[df_v_filtrado['Estado_Simple'] == "✅ Venta"])
+tasa_asistencia = (total_asistencias / total_leads * 100) if total_leads > 0 else 0
+tasa_cierre = (ventas_cerradas / total_asistencias * 100) if total_asistencias > 0 else 0
 
-# Tasas
-show_rate = (asistencias / leads_calificados * 100) if leads_calificados > 0 else 0
-close_rate = (ventas / asistencias * 100) if asistencias > 0 else 0
-conversion_global = (ventas / total_leads * 100) if total_leads > 0 else 0
+# --- LÓGICA DE PROYECCIONES ---
+mes_actual = hoy.month
+anio_actual = hoy.year
+dias_en_mes = (pd.Timestamp(year=anio_actual, month=mes_actual, day=1) + pd.tseries.offsets.MonthEnd(0)).day
+dia_hoy = hoy.day
+dias_restantes = dias_en_mes - dia_hoy
 
-# --- 8. DASHBOARD VISUAL ---
-st.title("🚀 Agency Growth Dashboard")
-st.markdown("---")
-
-# KPIs Principales
-col1, col2, col3, col4 = st.columns(4)
-
-# Calculo de progreso seguro (Evita el error de línea 220)
-if m_fact > 0:
-    delta_fact = f"{facturacion/m_fact*100:.1f}% Meta"
+# CORRECCIÓN DE LA LÍNEA 220: Validación de seguridad
+# Validamos que meta_facturacion no sea None (puede pasar si borras el campo) ni 0
+if meta_facturacion and meta_facturacion > 0:
+    progreso_facturacion = min(facturacion / meta_facturacion, 1.0)
+    faltante_facturacion = max(meta_facturacion - facturacion, 0)
 else:
-    delta_fact = "0% Meta"
+    progreso_facturacion = 0
+    faltante_facturacion = 0
 
-col1.metric("💰 Facturación", f"${facturacion:,.0f}", delta=delta_fact)
-col2.metric("💸 Ad Spend", f"${inversion:,.0f}")
-col3.metric("💎 Profit", f"${profit:,.0f}", delta_color="normal")
-col4.metric("🔥 ROAS", f"{roas:.2f}x", delta=f"{roas-2:.1f} vs KPI" if roas>0 else 0)
+proyeccion_cierre = (facturacion / dia_hoy) * dias_en_mes if dia_hoy > 0 else 0
 
-# FUNNEL
-st.markdown("### 🌪️ Sales Funnel Efficiency")
-c_funnel, c_metrics = st.columns([2, 1])
-
-with c_funnel:
-    stages = ["Total Leads", "Calificados", "Calls (Shows)", "Ventas"]
-    values = [total_leads, leads_calificados, asistencias, ventas]
-    
-    fig_funnel = go.Figure(go.Funnel(
-        y = stages,
-        x = values,
-        textinfo = "value+percent initial",
-        marker = {"color": ["#636EFA", "#AB63FA", "#FFA15A", "#00CC96"]}
-    ))
-    fig_funnel.update_layout(margin=dict(l=0, r=0, t=0, b=0), height=300)
-    st.plotly_chart(fig_funnel, use_container_width=True)
-
-with c_metrics:
-    st.markdown("#### Tasas de Conversión")
-    st.markdown("---")
-    st.metric("Show Rate", f"{show_rate:.1f}%", help="% Agendados que asisten.")
-    st.metric("Close Rate", f"{close_rate:.1f}%", help="% Asistentes que compran.")
-    st.metric("Conv. Global", f"{conversion_global:.1f}%")
-
-# GRÁFICOS HORIZONTALES (Full Width)
-st.markdown("---")
-
-st.subheader("📅 Mejores Días para Cerrar")
-if not df_v_filtrado.empty:
-    ventas_dia = df_v_filtrado[df_v_filtrado['Estado_Simple'] == "✅ Venta"].groupby('Dia_Semana')['Monto ($)'].sum().reindex(
-        ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
-    ).fillna(0).reset_index()
-    
-    fig_bar = px.bar(ventas_dia, x="Dia_Semana", y="Monto ($)", color="Monto ($)", 
-                     color_continuous_scale="Greens", title="Facturación Acumulada por Día")
-    fig_bar.update_layout(height=400) 
-    st.plotly_chart(fig_bar, use_container_width=True)
+# NUEVO: Facturación Sugerida Diaria
+if dias_restantes > 0:
+    facturacion_necesaria_diaria = faltante_facturacion / dias_restantes
 else:
-    st.info("Sin datos de ventas en este período.")
+    facturacion_necesaria_diaria = faltante_facturacion 
+
+# Proyección Gasto Ads (Budget Pacing)
+gasto_mes_total = df_gastos[
+    (df_gastos['Fecha'].dt.month == mes_actual) & 
+    (df_gastos['Fecha'].dt.year == anio_actual)
+]['Gasto'].sum()
+
+presupuesto_restante = max(presupuesto_ads - gasto_mes_total, 0)
+gasto_ideal_diario = presupuesto_restante / dias_restantes if dias_restantes > 0 else 0
+gasto_promedio_actual = gasto_mes_total / dia_hoy if dia_hoy > 0 else 0
+
+# --- VISUALES ---
+
+# 1. SECCIÓN PROYECCIONES (SOLO SI VEMOS "ESTE MES")
+if filtro_tiempo == "Este Mes":
+    st.markdown("### 🎯 Proyecciones del Mes (Pacing)")
+    col_p1, col_p2, col_p3 = st.columns(3)
+    
+    with col_p1:
+        st.metric("Meta Facturación", f"${meta_facturacion:,.0f}")
+        st.progress(progreso_facturacion)
+        st.caption(f"Progreso: {progreso_facturacion*100:.1f}%")
+        
+    with col_p2:
+        st.metric("Falta para Meta", f"${faltante_facturacion:,.0f}", delta=f"Proy. Cierre: ${proyeccion_cierre:,.0f}")
+        st.info(f"💡 Debes facturar **${facturacion_necesaria_diaria:,.0f}/día** los próximos {dias_restantes} días.")
+
+    with col_p3:
+        st.metric("Budget Disponible Diario", f"${gasto_ideal_diario:.0f}/día")
+        delta_gasto = gasto_ideal_diario - gasto_promedio_actual
+        if delta_gasto < 0:
+            st.warning(f"⚠️ Estás gastando ${abs(delta_gasto):.0f} de MÁS por día.")
+        else:
+            st.caption(f"Estás gastando ${gasto_promedio_actual:.0f}/día (Bien)")
+
+    st.divider()
+
+# 2. FINANZAS
+st.markdown("### 💰 Estado Financiero")
+k1, k2, k3, k4 = st.columns(4)
+k1.metric("Facturación", f"${facturacion:,.0f}")
+k2.metric("Profit", f"${profit:,.0f}", delta=profit)
+k3.metric("Inversión Ads", f"${inversion_ads:,.0f}")
+delta_roas = roas - 1
+k4.metric("ROAS", f"{roas:.2f}x", delta=f"{delta_roas:.2f} vs Objetivo" if roas > 0 else 0)
 
 st.divider()
 
-st.subheader("📈 Tendencia Diaria")
-if not df_v_filtrado.empty:
-    diario = df_v_filtrado.groupby('Fecha').agg({
-        'Estado_Simple': 'count',
-        'Monto ($)': 'sum'
-    }).rename(columns={'Estado_Simple': 'Leads'}).reset_index()
-    
-    fig_trend = px.line(diario, x='Fecha', y='Leads', title="Volumen vs. Ingresos", markers=True)
-    fig_trend.add_bar(x=diario['Fecha'], y=diario['Monto ($)'], name="Facturación", yaxis="y2", opacity=0.3)
-    
-    fig_trend.update_layout(
-        yaxis2=dict(title="Facturación ($)", overlaying="y", side="right", showgrid=False),
-        height=450,
-        legend=dict(orientation="h", y=1.1, x=0)
-    )
-    st.plotly_chart(fig_trend, use_container_width=True)
+# 3. EFICIENCIA
+st.markdown("### 📞 Eficiencia Comercial")
+e1, e2, e3, e4 = st.columns(4)
+e1.metric("Total Leads", total_leads)
+e2.metric("Asistencias", total_asistencias, help="Ventas + Seguimiento + Descalificados")
+e3.metric("Tasa Asistencia", f"{tasa_asistencia:.1f}%")
+e4.metric("Tasa Cierre", f"{tasa_cierre:.1f}%")
 
-# RANKING FINAL (Sin error de jinja2)
-st.markdown("### 🏆 Performance de Equipo")
+st.markdown("---")
+st.subheader("🔍 Desglose de Leads (Widget)")
+
+c_venta = len(df_v_filtrado[df_v_filtrado['Estado_Simple'] == "✅ Venta"])
+c_noshow = len(df_v_filtrado[df_v_filtrado['Estado_Simple'] == "❌ No Show"])
+c_descalif = len(df_v_filtrado[df_v_filtrado['Estado_Simple'] == "🚫 Descalificado"])
+c_agendado = len(df_v_filtrado[df_v_filtrado['Estado_Simple'].isin(["📅 Re-Agendado", "Otro/Pendiente"])])
+c_seguimiento = len(df_v_filtrado[df_v_filtrado['Estado_Simple'] == "👀 Seguimiento"])
+
+w1, w2, w3, w4, w5 = st.columns(5)
+w1.metric("✅ Ventas", c_venta)
+w2.metric("👀 Seguimiento", c_seguimiento)
+w3.metric("❌ No Show", c_noshow)
+w4.metric("🚫 Descalif.", c_descalif)
+w5.metric("📅 Agend/Otro", c_agendado)
+
 if not df_v_filtrado.empty:
-    ranking = df_v_filtrado.groupby('Closer').apply(
-        lambda x: pd.Series({
-            'Leads': len(x),
-            'Facturado': x['Monto ($)'].sum(),
-            'Shows': x['Es_Asistencia'].sum(),
-            'Ventas': x['Estado_Simple'].eq("✅ Venta").sum()
-        })
-    ).reset_index()
-    
-    ranking['Show Rate'] = (ranking['Shows'] / ranking['Leads']).fillna(0)
-    ranking['Close Rate'] = (ranking['Ventas'] / ranking['Shows']).fillna(0)
-    ranking['Ticket Promedio'] = (ranking['Facturado'] / ranking['Ventas']).fillna(0)
-    
-    ranking = ranking.sort_values('Facturado', ascending=False)
-    
-    st.dataframe(
-        ranking,
-        use_container_width=True,
-        column_order=["Closer", "Leads", "Shows", "Ventas", "Show Rate", "Close Rate", "Ticket Promedio", "Facturado"],
-        hide_index=True,
-        column_config={
-            "Closer": st.column_config.TextColumn("👤 Closer"),
-            "Show Rate": st.column_config.ProgressColumn("Show Rate", format="%.1f%%", min_value=0, max_value=1),
-            "Close Rate": st.column_config.ProgressColumn("Close Rate", format="%.1f%%", min_value=0, max_value=1),
-            "Facturado": st.column_config.NumberColumn("💰 Facturado", format="$%d")
+    daily_status = df_v_filtrado.groupby(['Fecha', 'Estado_Simple']).size().reset_index(name='Cantidad')
+    fig_status = px.bar(
+        daily_status, x="Fecha", y="Cantidad", color="Estado_Simple", 
+        title="Evolución Diaria de Leads",
+        color_discrete_map={
+            "✅ Venta": "#00CC96", 
+            "❌ No Show": "#EF553B",
+            "🚫 Descalificado": "#FFA15A",
+            "👀 Seguimiento": "#636EFA",
+            "📅 Re-Agendado": "#AB63FA",
+            "Otro/Pendiente": "#d3d3d3"
         }
     )
+    st.plotly_chart(fig_status, use_container_width=True)
+
+tab1, tab2 = st.tabs(["🏆 Ranking Closers", "📊 Facturación vs Ads"])
+
+with tab1:
+    if not df_v_filtrado.empty:
+        ranking = df_v_filtrado.groupby('Closer').apply(
+            lambda x: pd.Series({
+                'Facturado': x['Monto ($)'].sum(),
+                'Asistencias': x['Es_Asistencia'].sum(),
+                'Ventas': x['Estado_Simple'].eq("✅ Venta").sum()
+            })
+        ).reset_index()
+        ranking['% Cierre'] = (ranking['Ventas'] / ranking['Asistencias'] * 100).fillna(0)
+        ranking = ranking.sort_values('Facturado', ascending=False)
+        st.dataframe(ranking.style.format({'Facturado': '${:,.0f}', '% Cierre':
