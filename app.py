@@ -157,13 +157,15 @@ if st.sidebar.button("💾 Guardar Objetivos"):
 st.sidebar.markdown("---")
 
 # --- FILTROS ---
+# 1. Agregamos "Mes Anterior" a la lista
 filtro_tiempo = st.sidebar.selectbox(
     "Selecciona Período:",
-    ["Este Mes", "Hoy", "Ayer", "Esta Semana", "Últimos 7 días", "Últimos 30 días", "Personalizado"]
+    ["Este Mes", "Mes Anterior", "Hoy", "Ayer", "Esta Semana", "Últimos 7 días", "Últimos 30 días", "Personalizado"]
 )
 
 hoy = pd.to_datetime("today").date()
 
+# 2. Lógica de fechas
 if filtro_tiempo == "Hoy":
     f_inicio, f_fin = hoy, hoy
 elif filtro_tiempo == "Ayer":
@@ -177,10 +179,18 @@ elif filtro_tiempo == "Este Mes":
     f_inicio, f_fin = hoy.replace(day=1), hoy
 elif filtro_tiempo == "Últimos 30 días":
     f_inicio, f_fin = hoy - timedelta(days=30), hoy
+elif filtro_tiempo == "Mes Anterior":
+    # Calculamos el primer día de ESTE mes
+    primer_dia_este_mes = hoy.replace(day=1)
+    # Restamos un día para obtener el último día del mes ANTERIOR
+    f_fin = primer_dia_este_mes - timedelta(days=1)
+    # Forzamos el día 1 para obtener el inicio del mes ANTERIOR
+    f_inicio = f_fin.replace(day=1)
 else:
     f_inicio = st.sidebar.date_input("Inicio", hoy)
     f_fin = st.sidebar.date_input("Fin", hoy)
 
+# ... El resto de tu código sigue igual ...
 lista_closers = ["Todos"] + sorted([c for c in df_ventas['Closer'].unique() if c])
 closer_sel = st.sidebar.selectbox("Closer", lista_closers)
 
@@ -198,17 +208,6 @@ else:
 if closer_sel != "Todos":
     df_v_filtrado = df_v_filtrado[df_v_filtrado['Closer'] == closer_sel]
 
-# --- CÁLCULOS PRINCIPALES ---
-facturacion = df_v_filtrado['Monto ($)'].sum()
-inversion_ads = df_g_filtrado['Gasto'].sum() if closer_sel == "Todos" else 0
-profit = facturacion - inversion_ads 
-roas = (facturacion / inversion_ads) if inversion_ads > 0 else 0
-
-total_leads = len(df_v_filtrado)
-total_asistencias = df_v_filtrado['Es_Asistencia'].sum()
-ventas_cerradas = len(df_v_filtrado[df_v_filtrado['Estado_Simple'] == "✅ Venta"])
-tasa_asistencia = (total_asistencias / total_leads * 100) if total_leads > 0 else 0
-tasa_cierre = (ventas_cerradas / total_asistencias * 100) if total_asistencias > 0 else 0
 
 # --- LÓGICA DE PROYECCIONES ---
 mes_actual = hoy.month
@@ -338,4 +337,5 @@ with tab2:
         g_dia = df_g_filtrado.groupby('Fecha')['Gasto'].sum().reset_index()
         fig_fin.add_scatter(x=g_dia['Fecha'], y=g_dia['Gasto'], mode='lines+markers', name='Gasto Ads', line=dict(color='red'))
     st.plotly_chart(fig_fin, use_container_width=True)
+
 
