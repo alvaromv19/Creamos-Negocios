@@ -2,85 +2,63 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 from datetime import datetime, timedelta
-import json
-import os
-import extra_streamlit_components as stx 
 
-# --- PANTALLA DE BIENVENIDA CON COOKIES (PERSISTENTE) ---
-def pantalla_bienvenida():
-    st.markdown("""
-        <style>
-            .stSpinner { display:none; }
-        </style>
-    """, unsafe_allow_html=True)
+# --- 1. CONFIGURACIÓN DE PÁGINA ---
+st.set_page_config(page_title="Agency Dashboard", page_icon="🚀", layout="wide")
 
-    cookie_manager = stx.CookieManager(key="cookie_manager_dashboard")
-    
-    # Manejo de error silencioso por si las cookies tardan en cargar
-    try:
-        cookie_val = cookie_manager.get(cookie="ingreso_ok")
-    except:
-        cookie_val = None
+# --- 2. SISTEMA DE LOGIN ROBUSTO (SIN COOKIES) ---
+# Para que esto funcione seguro, ve a tu Streamlit Cloud -> Settings -> Secrets
+# y añade: PASSWORD = "tu_contraseña_aqui"
+# Si no lo configuras, la contraseña por defecto será "agencia123"
 
-    if cookie_val == "true":
+def verificar_acceso():
+    if "ingreso_confirmado" not in st.session_state:
+        st.session_state["ingreso_confirmado"] = False
+
+    if st.session_state["ingreso_confirmado"]:
         return True
 
-    if "ingreso_confirmado" in st.session_state and st.session_state["ingreso_confirmado"]:
-        return True
-
+    # Diseño de Pantalla de Bloqueo
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        st.markdown("<br><br>", unsafe_allow_html=True)
-        st.title("🚀 Bienvenido al Dashboard")
-        st.subheader("Creamos Negocios")
-        st.markdown("Tu centro de comando para visualizar métricas y escalar resultados.")
-        st.markdown("---")
+        st.markdown("<br><br><br>", unsafe_allow_html=True)
+        st.title("🔒 Acceso Restringido")
+        st.markdown("Sistema de Monitoreo - Creamos Negocios")
         
-        if st.button("Ingresar al Sistema ➡️", type="primary", use_container_width=True):
-            st.session_state["ingreso_confirmado"] = True
-            try:
-                cookie_manager.set("ingreso_ok", "true", expires_at=datetime.now() + timedelta(days=30))
-            except:
-                pass 
-            st.rerun()
+        password_input = st.text_input("Ingrese Clave de Acceso:", type="password")
+        
+        if st.button("Ingresar ➡️", type="primary", use_container_width=True):
+            # Contraseña por defecto o desde Secrets
+            clave_real = st.secrets.get("PASSWORD", "agencia123") 
+            
+            if password_input == clave_real:
+                st.session_state["ingreso_confirmado"] = True
+                st.rerun()
+            else:
+                st.error("⛔ Contraseña incorrecta")
 
-    return False 
+    return False
 
-# --- CONFIGURACIÓN DE METAS (PERSISTENCIA) ---
-ARCHIVO_METAS = 'metas_config.json'
+if not verificar_acceso():
+    st.stop()
 
-def cargar_metas():
-    if os.path.exists(ARCHIVO_METAS):
-        with open(ARCHIVO_METAS, 'r') as f:
-            return json.load(f)
-    return {"meta_facturacion": 10000.0, "presupuesto_ads": 3000.0}
-
-def guardar_metas_archivo(fact, ads):
-    with open(ARCHIVO_METAS, 'w') as f:
-        json.dump({"meta_facturacion": fact, "presupuesto_ads": ads}, f)
-
-# --- AQUÍ EMPIEZA TU DASHBOARD ---
+# --- 3. CARGA DE DATOS (VENTAS, GASTOS Y METAS) ---
 st.title("🚀 Creamos Negocios - Dashboard")
 
-# --- CARGA DE DATOS ---
 @st.cache_data(ttl=300) 
 def cargar_datos():
+    # --- URLS ---
     url_ventas = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQuXaPCen61slzpr1TElxXoCROIxAgmgWT7pyWvel1dxq_Z_U1yZPrVrTbJfx9MwaL8_cluY3v2ywoB/pub?gid=0&single=true&output=csv"
-    
-    # URL 1: Gastos Diciembre (Antiguo)
     url_gastos_dic = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQGOLgPTDLie5gEbkViCbpebWfN9S_eb2h2GGlpWLjmfVgzfnwR_ncVTs4IqmKgmAFfxZTQHJlMBrIi/pub?gid=0&single=true&output=csv"
-    
-    # URL 2: Gastos Año Nuevo (Nuevo Link)
     url_gastos_anual = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTQKTt_taqoH2qNwWbs3t4doLsi0SuGavgdUNvpCKrqtlp5U9GaTqkTt9q-c1eWBnvPN88Qg5t0vXzK/pub?output=csv"
-
-    # --- PROCESAR VENTAS ---
+    
+    # --- A. PROCESAR VENTAS ---
     try:
         df_v = pd.read_csv(url_ventas)
         df_v['Fecha'] = pd.to_datetime(df_v['Fecha'], dayfirst=True, errors='coerce')
         if df_v['Monto ($)'].dtype == 'O': 
             df_v['Monto ($)'] = df_v['Monto ($)'].astype(str).str.replace(r'[$,]', '', regex=True)
         df_v['Monto ($)'] = pd.to_numeric(df_v['Monto ($)'], errors='coerce').fillna(0)
-        
         df_v['Closer'] = df_v['Closer'].fillna("Sin Asignar")
         df_v['Resultado'] = df_v['Resultado'].fillna("Pendiente")
         
@@ -102,90 +80,48 @@ def cargar_datos():
             if "asistió" in res and "no show" not in res: return True
             return False
         df_v['Es_Asistencia'] = df_v.apply(es_asistencia_valida, axis=1)
-
     except Exception as e:
-        st.error(f"Error cargando Ventas: {e}")
         df_v = pd.DataFrame()
 
-    # --- PROCESAR GASTOS (COMBINADO) ---
-    df_g_final = pd.DataFrame() # DataFrame vacio por seguridad
-    
-    # 1. Cargar Gastos Diciembre (Lógica anterior)
+    # --- B. PROCESAR GASTOS (COMBINADO) ---
     try:
+        # Gasto 1 (Dic)
         df_g1 = pd.read_csv(url_gastos_dic)
-        # Limpieza estándar
         df_g1['Fecha'] = pd.to_datetime(df_g1['Fecha'], dayfirst=True, errors='coerce')
-        if df_g1['Gasto'].dtype == 'O':
-            df_g1['Gasto'] = df_g1['Gasto'].astype(str).str.replace(r'[$,]', '', regex=True)
+        if df_g1['Gasto'].dtype == 'O': df_g1['Gasto'] = df_g1['Gasto'].astype(str).str.replace(r'[$,]', '', regex=True)
         df_g1['Gasto'] = pd.to_numeric(df_g1['Gasto'], errors='coerce').fillna(0)
-        # Nos aseguramos de tener solo las columnas que importan para unir despues
-        if 'Fecha' in df_g1.columns and 'Gasto' in df_g1.columns:
-            df_g1 = df_g1[['Fecha', 'Gasto']]
-    except Exception:
-        df_g1 = pd.DataFrame(columns=['Fecha', 'Gasto'])
-
-    # 2. Cargar Gastos Anuales (Nuevo Link)
-    try:
+        if {'Fecha', 'Gasto'}.issubset(df_g1.columns): df_g1 = df_g1[['Fecha', 'Gasto']]
+        
+        # Gasto 2 (Anual)
         df_g2 = pd.read_csv(url_gastos_anual)
-        
-        # Como dijiste que la col 1 es fecha y col 2 es gasto, las seleccionamos por posición
-        # para evitar errores si el titulo cambia ligeramente.
-        # df_g2.iloc[:, 0] -> Primera columna
-        # df_g2.iloc[:, 1] -> Segunda columna
-        df_g2 = df_g2.iloc[:, 0:2] 
-        df_g2.columns = ['Fecha', 'Gasto'] # Renombramos para que coincida con df_g1
-        
-        # Formato fecha Año-mes-dia (Pandas suele detectarlo automático, pero forzamos errors='coerce')
+        df_g2 = df_g2.iloc[:, 0:2] # Tomar solo 2 primeras columnas
+        df_g2.columns = ['Fecha', 'Gasto'] 
         df_g2['Fecha'] = pd.to_datetime(df_g2['Fecha'], errors='coerce')
-        
-        # Limpieza de simbolo de moneda por si acaso
-        if df_g2['Gasto'].dtype == 'O':
-            df_g2['Gasto'] = df_g2['Gasto'].astype(str).str.replace(r'[$,]', '', regex=True)
+        if df_g2['Gasto'].dtype == 'O': df_g2['Gasto'] = df_g2['Gasto'].astype(str).str.replace(r'[$,]', '', regex=True)
         df_g2['Gasto'] = pd.to_numeric(df_g2['Gasto'], errors='coerce').fillna(0)
-    except Exception:
-        df_g2 = pd.DataFrame(columns=['Fecha', 'Gasto'])
 
-    # 3. Unir ambos DataFrames
-    df_g = pd.concat([df_g1, df_g2], ignore_index=True)
-    
-    # Ordenar por fecha para que el gráfico salga ordenado
-    if not df_g.empty:
-        df_g = df_g.sort_values('Fecha')
+        # Unir y ordenar
+        df_g = pd.concat([df_g1, df_g2], ignore_index=True).sort_values('Fecha')
+    except Exception:
+        df_g = pd.DataFrame(columns=['Fecha', 'Gasto'])
 
     return df_v, df_g
-
-if not pantalla_bienvenida():
-    st.stop()
 
 df_ventas, df_gastos = cargar_datos()
 
 if df_ventas.empty:
-    st.warning("Esperando datos... Revisa conexión.")
+    st.warning("⚠️ Esperando datos... Si esto persiste, revisa los links de Google Sheets.")
     st.stop()
 
-# --- SIDEBAR: CONFIGURACIÓN Y METAS ---
+# --- 4. SIDEBAR Y CONTROLES ---
 st.sidebar.header("🎛️ Panel de Control")
 if st.sidebar.button("🔄 Actualizar Datos"):
     st.cache_data.clear()
     st.rerun()
 
-# --- SECCIÓN: METAS PERSISTENTES ---
-st.sidebar.markdown("---")
-st.sidebar.subheader("🎯 Configuración de Objetivos")
-
-metas_actuales = cargar_metas()
-# Usamos min_value=1.0 para evitar ceros accidentales en la UI
-meta_facturacion = st.sidebar.number_input("Meta Facturación ($)", value=float(metas_actuales["meta_facturacion"]), step=500.0, min_value=1.0)
-presupuesto_ads = st.sidebar.number_input("Presupuesto Ads ($)", value=float(metas_actuales["presupuesto_ads"]), step=100.0)
-
-if st.sidebar.button("💾 Guardar Objetivos"):
-    guardar_metas_archivo(meta_facturacion, presupuesto_ads)
-    st.sidebar.success("¡Objetivos actualizados!")
-    st.rerun()
-
 st.sidebar.markdown("---")
 
-# --- FILTROS (INCLUYE MES ANTERIOR) ---
+# FILTROS
 filtro_tiempo = st.sidebar.selectbox(
     "Selecciona Período:",
     ["Este Mes", "Mes Anterior", "Hoy", "Ayer", "Esta Semana", "Últimos 7 días", "Últimos 30 días", "Personalizado"]
@@ -193,23 +129,16 @@ filtro_tiempo = st.sidebar.selectbox(
 
 hoy = pd.to_datetime("today").date()
 
-if filtro_tiempo == "Hoy":
-    f_inicio, f_fin = hoy, hoy
-elif filtro_tiempo == "Ayer":
-    f_inicio, f_fin = hoy - timedelta(days=1), hoy - timedelta(days=1)
-elif filtro_tiempo == "Esta Semana":
-    f_inicio = hoy - timedelta(days=hoy.weekday())
-    f_fin = hoy
-elif filtro_tiempo == "Últimos 7 días":
-    f_inicio, f_fin = hoy - timedelta(days=7), hoy
-elif filtro_tiempo == "Este Mes":
-    f_inicio, f_fin = hoy.replace(day=1), hoy
+if filtro_tiempo == "Hoy": f_inicio, f_fin = hoy, hoy
+elif filtro_tiempo == "Ayer": f_inicio, f_fin = hoy - timedelta(days=1), hoy - timedelta(days=1)
+elif filtro_tiempo == "Esta Semana": f_inicio, f_fin = hoy - timedelta(days=hoy.weekday()), hoy
+elif filtro_tiempo == "Últimos 7 días": f_inicio, f_fin = hoy - timedelta(days=7), hoy
+elif filtro_tiempo == "Este Mes": f_inicio, f_fin = hoy.replace(day=1), hoy
 elif filtro_tiempo == "Mes Anterior":
-    primer_dia_este_mes = hoy.replace(day=1)
-    f_fin = primer_dia_este_mes - timedelta(days=1)
+    primer = hoy.replace(day=1)
+    f_fin = primer - timedelta(days=1)
     f_inicio = f_fin.replace(day=1)
-elif filtro_tiempo == "Últimos 30 días":
-    f_inicio, f_fin = hoy - timedelta(days=30), hoy
+elif filtro_tiempo == "Últimos 30 días": f_inicio, f_fin = hoy - timedelta(days=30), hoy
 else:
     f_inicio = st.sidebar.date_input("Inicio", hoy)
     f_fin = st.sidebar.date_input("Fin", hoy)
@@ -217,21 +146,45 @@ else:
 lista_closers = ["Todos"] + sorted([c for c in df_ventas['Closer'].unique() if c])
 closer_sel = st.sidebar.selectbox("Closer", lista_closers)
 
-st.sidebar.info(f"📅 Visualizando: {f_inicio} al {f_fin}")
+st.sidebar.info(f"📅 {f_inicio} al {f_fin}")
 
+# APLICAR FILTROS
 mask_v = (df_ventas['Fecha'].dt.date >= f_inicio) & (df_ventas['Fecha'].dt.date <= f_fin)
 df_v_filtrado = df_ventas.loc[mask_v].copy()
 
 if not df_gastos.empty:
     mask_g = (df_gastos['Fecha'].dt.date >= f_inicio) & (df_gastos['Fecha'].dt.date <= f_fin)
     df_g_filtrado = df_gastos.loc[mask_g].copy()
-else:
-    df_g_filtrado = pd.DataFrame(columns=['Fecha', 'Gasto'])
+else: df_g_filtrado = pd.DataFrame(columns=['Fecha', 'Gasto'])
 
 if closer_sel != "Todos":
     df_v_filtrado = df_v_filtrado[df_v_filtrado['Closer'] == closer_sel]
 
-# --- CÁLCULOS PRINCIPALES ---
+# --- 5. GESTIÓN DE METAS (HARDCODED O SIMULADO) ---
+# NOTA: Para que esto sea persistente de verdad, lo ideal es leerlo de un Google Sheet también.
+# Por ahora, usaré st.session_state para que no se borre AL RECARGAR, 
+# pero si el servidor se reinicia, volverá a estos valores por defecto.
+st.sidebar.markdown("---")
+st.sidebar.subheader("🎯 Configuración Objetivos")
+
+# Valores por defecto (Cámbialos aquí en el código si quieres otros fijos)
+DEFAULT_FACTURACION = 30000.0
+DEFAULT_ADS = 3500.0
+
+if "meta_facturacion" not in st.session_state:
+    st.session_state["meta_facturacion"] = DEFAULT_FACTURACION
+if "presupuesto_ads" not in st.session_state:
+    st.session_state["presupuesto_ads"] = DEFAULT_ADS
+
+m_fact = st.sidebar.number_input("Meta Facturación ($)", value=st.session_state["meta_facturacion"], step=500.0)
+m_ads = st.sidebar.number_input("Presupuesto Ads ($)", value=st.session_state["presupuesto_ads"], step=100.0)
+
+if st.sidebar.button("Aplicar Objetivos"):
+    st.session_state["meta_facturacion"] = m_fact
+    st.session_state["presupuesto_ads"] = m_ads
+    st.rerun()
+
+# --- 6. CÁLCULOS PRINCIPALES ---
 facturacion = df_v_filtrado['Monto ($)'].sum()
 inversion_ads = df_g_filtrado['Gasto'].sum() if closer_sel == "Todos" else 0
 profit = facturacion - inversion_ads 
@@ -243,49 +196,47 @@ ventas_cerradas = len(df_v_filtrado[df_v_filtrado['Estado_Simple'] == "✅ Venta
 tasa_asistencia = (total_asistencias / total_leads * 100) if total_leads > 0 else 0
 tasa_cierre = (ventas_cerradas / total_asistencias * 100) if total_asistencias > 0 else 0
 
-# --- LÓGICA DE PROYECCIONES ---
+# Proyecciones
 mes_actual = hoy.month
 anio_actual = hoy.year
 dias_en_mes = (pd.Timestamp(year=anio_actual, month=mes_actual, day=1) + pd.tseries.offsets.MonthEnd(0)).day
 dia_hoy = hoy.day
 dias_restantes = dias_en_mes - dia_hoy
 
-# CORRECCIÓN DE LA LÍNEA 220: Validación de seguridad
-# Validamos que meta_facturacion no sea None (puede pasar si borras el campo) ni 0
-if meta_facturacion and meta_facturacion > 0:
-    progreso_facturacion = min(facturacion / meta_facturacion, 1.0)
-    faltante_facturacion = max(meta_facturacion - facturacion, 0)
+meta_fact = st.session_state["meta_facturacion"]
+if meta_fact > 0:
+    progreso_facturacion = min(facturacion / meta_fact, 1.0)
+    faltante_facturacion = max(meta_fact - facturacion, 0)
 else:
     progreso_facturacion = 0
     faltante_facturacion = 0
 
 proyeccion_cierre = (facturacion / dia_hoy) * dias_en_mes if dia_hoy > 0 else 0
 
-# NUEVO: Facturación Sugerida Diaria
 if dias_restantes > 0:
     facturacion_necesaria_diaria = faltante_facturacion / dias_restantes
 else:
     facturacion_necesaria_diaria = faltante_facturacion 
 
-# Proyección Gasto Ads (Budget Pacing)
+# Gasto Ads Pacing
 gasto_mes_total = df_gastos[
     (df_gastos['Fecha'].dt.month == mes_actual) & 
     (df_gastos['Fecha'].dt.year == anio_actual)
 ]['Gasto'].sum()
 
-presupuesto_restante = max(presupuesto_ads - gasto_mes_total, 0)
-gasto_ideal_diario = presupuesto_restante / dias_restantes if dias_restantes > 0 else 0
+budget_restante = max(st.session_state["presupuesto_ads"] - gasto_mes_total, 0)
+gasto_ideal_diario = budget_restante / dias_restantes if dias_restantes > 0 else 0
 gasto_promedio_actual = gasto_mes_total / dia_hoy if dia_hoy > 0 else 0
 
-# --- VISUALES ---
+# --- 7. VISUALES DASHBOARD ---
 
-# 1. SECCIÓN PROYECCIONES (SOLO SI VEMOS "ESTE MES")
+# SECCIÓN PROYECCIONES (SOLO "ESTE MES")
 if filtro_tiempo == "Este Mes":
     st.markdown("### 🎯 Proyecciones del Mes (Pacing)")
     col_p1, col_p2, col_p3 = st.columns(3)
     
     with col_p1:
-        st.metric("Meta Facturación", f"${meta_facturacion:,.0f}")
+        st.metric("Meta Facturación", f"${meta_fact:,.0f}")
         st.progress(progreso_facturacion)
         st.caption(f"Progreso: {progreso_facturacion*100:.1f}%")
         
@@ -300,10 +251,9 @@ if filtro_tiempo == "Este Mes":
             st.warning(f"⚠️ Estás gastando ${abs(delta_gasto):.0f} de MÁS por día.")
         else:
             st.caption(f"Estás gastando ${gasto_promedio_actual:.0f}/día (Bien)")
-
     st.divider()
 
-# 2. FINANZAS
+# FINANZAS
 st.markdown("### 💰 Estado Financiero")
 k1, k2, k3, k4 = st.columns(4)
 k1.metric("Facturación", f"${facturacion:,.0f}")
@@ -314,7 +264,7 @@ k4.metric("ROAS", f"{roas:.2f}x", delta=f"{delta_roas:.2f} vs Objetivo" if roas 
 
 st.divider()
 
-# 3. EFICIENCIA
+# EFICIENCIA
 st.markdown("### 📞 Eficiencia Comercial")
 e1, e2, e3, e4 = st.columns(4)
 e1.metric("Total Leads", total_leads)
@@ -344,12 +294,9 @@ if not df_v_filtrado.empty:
         daily_status, x="Fecha", y="Cantidad", color="Estado_Simple", 
         title="Evolución Diaria de Leads",
         color_discrete_map={
-            "✅ Venta": "#00CC96", 
-            "❌ No Show": "#EF553B",
-            "🚫 Descalificado": "#FFA15A",
-            "👀 Seguimiento": "#636EFA",
-            "📅 Re-Agendado": "#AB63FA",
-            "Otro/Pendiente": "#d3d3d3"
+            "✅ Venta": "#00CC96", "❌ No Show": "#EF553B",
+            "🚫 Descalificado": "#FFA15A", "👀 Seguimiento": "#636EFA",
+            "📅 Re-Agendado": "#AB63FA", "Otro/Pendiente": "#d3d3d3"
         }
     )
     st.plotly_chart(fig_status, use_container_width=True)
