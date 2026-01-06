@@ -66,9 +66,14 @@ st.title("🚀 Creamos Negocios - Dashboard")
 @st.cache_data(ttl=300) 
 def cargar_datos():
     url_ventas = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQuXaPCen61slzpr1TElxXoCROIxAgmgWT7pyWvel1dxq_Z_U1yZPrVrTbJfx9MwaL8_cluY3v2ywoB/pub?gid=0&single=true&output=csv"
-    url_gastos = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQGOLgPTDLie5gEbkViCbpebWfN9S_eb2h2GGlpWLjmfVgzfnwR_ncVTs4IqmKgmAFfxZTQHJlMBrIi/pub?gid=0&single=true&output=csv"
+    
+    # URL 1: Gastos Diciembre (Antiguo)
+    url_gastos_dic = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQGOLgPTDLie5gEbkViCbpebWfN9S_eb2h2GGlpWLjmfVgzfnwR_ncVTs4IqmKgmAFfxZTQHJlMBrIi/pub?gid=0&single=true&output=csv"
+    
+    # URL 2: Gastos Año Nuevo (Nuevo Link)
+    url_gastos_anual = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTQKTt_taqoH2qNwWbs3t4doLsi0SuGavgdUNvpCKrqtlp5U9GaTqkTt9q-c1eWBnvPN88Qg5t0vXzK/pub?output=csv"
 
-    # VENTAS
+    # --- PROCESAR VENTAS ---
     try:
         df_v = pd.read_csv(url_ventas)
         df_v['Fecha'] = pd.to_datetime(df_v['Fecha'], dayfirst=True, errors='coerce')
@@ -102,15 +107,50 @@ def cargar_datos():
         st.error(f"Error cargando Ventas: {e}")
         df_v = pd.DataFrame()
 
-    # GASTOS
+    # --- PROCESAR GASTOS (COMBINADO) ---
+    df_g_final = pd.DataFrame() # DataFrame vacio por seguridad
+    
+    # 1. Cargar Gastos Diciembre (Lógica anterior)
     try:
-        df_g = pd.read_csv(url_gastos)
-        df_g['Fecha'] = pd.to_datetime(df_g['Fecha'], dayfirst=True, errors='coerce')
-        if df_g['Gasto'].dtype == 'O':
-            df_g['Gasto'] = df_g['Gasto'].astype(str).str.replace(r'[$,]', '', regex=True)
-        df_g['Gasto'] = pd.to_numeric(df_g['Gasto'], errors='coerce').fillna(0)
-    except Exception as e:
-        df_g = pd.DataFrame()
+        df_g1 = pd.read_csv(url_gastos_dic)
+        # Limpieza estándar
+        df_g1['Fecha'] = pd.to_datetime(df_g1['Fecha'], dayfirst=True, errors='coerce')
+        if df_g1['Gasto'].dtype == 'O':
+            df_g1['Gasto'] = df_g1['Gasto'].astype(str).str.replace(r'[$,]', '', regex=True)
+        df_g1['Gasto'] = pd.to_numeric(df_g1['Gasto'], errors='coerce').fillna(0)
+        # Nos aseguramos de tener solo las columnas que importan para unir despues
+        if 'Fecha' in df_g1.columns and 'Gasto' in df_g1.columns:
+            df_g1 = df_g1[['Fecha', 'Gasto']]
+    except Exception:
+        df_g1 = pd.DataFrame(columns=['Fecha', 'Gasto'])
+
+    # 2. Cargar Gastos Anuales (Nuevo Link)
+    try:
+        df_g2 = pd.read_csv(url_gastos_anual)
+        
+        # Como dijiste que la col 1 es fecha y col 2 es gasto, las seleccionamos por posición
+        # para evitar errores si el titulo cambia ligeramente.
+        # df_g2.iloc[:, 0] -> Primera columna
+        # df_g2.iloc[:, 1] -> Segunda columna
+        df_g2 = df_g2.iloc[:, 0:2] 
+        df_g2.columns = ['Fecha', 'Gasto'] # Renombramos para que coincida con df_g1
+        
+        # Formato fecha Año-mes-dia (Pandas suele detectarlo automático, pero forzamos errors='coerce')
+        df_g2['Fecha'] = pd.to_datetime(df_g2['Fecha'], errors='coerce')
+        
+        # Limpieza de simbolo de moneda por si acaso
+        if df_g2['Gasto'].dtype == 'O':
+            df_g2['Gasto'] = df_g2['Gasto'].astype(str).str.replace(r'[$,]', '', regex=True)
+        df_g2['Gasto'] = pd.to_numeric(df_g2['Gasto'], errors='coerce').fillna(0)
+    except Exception:
+        df_g2 = pd.DataFrame(columns=['Fecha', 'Gasto'])
+
+    # 3. Unir ambos DataFrames
+    df_g = pd.concat([df_g1, df_g2], ignore_index=True)
+    
+    # Ordenar por fecha para que el gráfico salga ordenado
+    if not df_g.empty:
+        df_g = df_g.sort_values('Fecha')
 
     return df_v, df_g
 
