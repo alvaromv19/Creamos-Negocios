@@ -159,9 +159,9 @@ st.sidebar.subheader("🎯 Configuración Objetivos")
 
 # Valores iniciales
 if "meta_facturacion" not in st.session_state:
-    st.session_state["meta_facturacion"] = 10000.0 # Valor por defecto
+    st.session_state["meta_facturacion"] = 30000.0 # Valor por defecto
 if "presupuesto_ads" not in st.session_state:
-    st.session_state["presupuesto_ads"] = 3000.0 # Valor por defecto
+    st.session_state["presupuesto_ads"] = 3500.0 # Valor por defecto
 
 m_fact = st.sidebar.number_input("Meta Facturación ($)", value=float(st.session_state["meta_facturacion"]), step=500.0)
 m_ads = st.sidebar.number_input("Presupuesto Ads ($)", value=float(st.session_state["presupuesto_ads"]), step=100.0)
@@ -310,3 +310,4 @@ with tab2:
         g_dia = df_g_filtrado.groupby('Fecha')['Gasto'].sum().reset_index()
         fig_fin.add_scatter(x=g_dia['Fecha'], y=g_dia['Gasto'], mode='lines+markers', name='Gasto Ads', line=dict(color='red'))
     st.plotly_chart(fig_fin, use_container_width=True)
+
