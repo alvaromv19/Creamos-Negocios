@@ -6,43 +6,36 @@ from datetime import datetime, timedelta
 # --- 1. CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(page_title="Agency Dashboard", page_icon="🚀", layout="wide")
 
-# --- 2. SISTEMA DE LOGIN ROBUSTO (SIN COOKIES) ---
-# Para que esto funcione seguro, ve a tu Streamlit Cloud -> Settings -> Secrets
-# y añade: PASSWORD = "tu_contraseña_aqui"
-# Si no lo configuras, la contraseña por defecto será "agencia123"
-
-def verificar_acceso():
+# --- 2. PANTALLA DE BIENVENIDA (SIMPLE Y COMPATIBLE GLOBALMENTE) ---
+def pantalla_bienvenida():
+    # Inicializar estado si no existe
     if "ingreso_confirmado" not in st.session_state:
         st.session_state["ingreso_confirmado"] = False
 
+    # Si ya ingresó, pasar directo
     if st.session_state["ingreso_confirmado"]:
         return True
 
-    # Diseño de Pantalla de Bloqueo
+    # Diseño de la Pantalla de Bienvenida
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         st.markdown("<br><br><br>", unsafe_allow_html=True)
-        st.title("🔒 Acceso Restringido")
-        st.markdown("Sistema de Monitoreo - Creamos Negocios")
+        st.title("🚀 Bienvenido al Dashboard")
+        st.subheader("Creamos Negocios")
+        st.markdown("Tu centro de comando para visualizar métricas y escalar resultados.")
+        st.markdown("---")
         
-        password_input = st.text_input("Ingrese Clave de Acceso:", type="password")
-        
-        if st.button("Ingresar ➡️", type="primary", use_container_width=True):
-            # Contraseña por defecto o desde Secrets
-            clave_real = st.secrets.get("PASSWORD", "agencia123") 
-            
-            if password_input == clave_real:
-                st.session_state["ingreso_confirmado"] = True
-                st.rerun()
-            else:
-                st.error("⛔ Contraseña incorrecta")
+        if st.button("Ingresar al Sistema ➡️", type="primary", use_container_width=True):
+            st.session_state["ingreso_confirmado"] = True
+            st.rerun()
 
     return False
 
-if not verificar_acceso():
+# Si no ha pasado la bienvenida, detener la ejecución aquí
+if not pantalla_bienvenida():
     st.stop()
 
-# --- 3. CARGA DE DATOS (VENTAS, GASTOS Y METAS) ---
+# --- 3. CARGA DE DATOS (VENTAS + GASTOS COMBINADOS) ---
 st.title("🚀 Creamos Negocios - Dashboard")
 
 @st.cache_data(ttl=300) 
@@ -83,7 +76,7 @@ def cargar_datos():
     except Exception as e:
         df_v = pd.DataFrame()
 
-    # --- B. PROCESAR GASTOS (COMBINADO) ---
+    # --- B. PROCESAR GASTOS (COMBINADO DICIEMBRE + ANUAL) ---
     try:
         # Gasto 1 (Dic)
         df_g1 = pd.read_csv(url_gastos_dic)
@@ -110,7 +103,7 @@ def cargar_datos():
 df_ventas, df_gastos = cargar_datos()
 
 if df_ventas.empty:
-    st.warning("⚠️ Esperando datos... Si esto persiste, revisa los links de Google Sheets.")
+    st.warning("⚠️ Esperando datos... Revisa conexión con Sheets.")
     st.stop()
 
 # --- 4. SIDEBAR Y CONTROLES ---
@@ -160,24 +153,18 @@ else: df_g_filtrado = pd.DataFrame(columns=['Fecha', 'Gasto'])
 if closer_sel != "Todos":
     df_v_filtrado = df_v_filtrado[df_v_filtrado['Closer'] == closer_sel]
 
-# --- 5. GESTIÓN DE METAS (HARDCODED O SIMULADO) ---
-# NOTA: Para que esto sea persistente de verdad, lo ideal es leerlo de un Google Sheet también.
-# Por ahora, usaré st.session_state para que no se borre AL RECARGAR, 
-# pero si el servidor se reinicia, volverá a estos valores por defecto.
+# --- 5. GESTIÓN DE METAS ---
 st.sidebar.markdown("---")
 st.sidebar.subheader("🎯 Configuración Objetivos")
 
-# Valores por defecto (Cámbialos aquí en el código si quieres otros fijos)
-DEFAULT_FACTURACION = 30000.0
-DEFAULT_ADS = 3500.0
-
+# Valores iniciales
 if "meta_facturacion" not in st.session_state:
-    st.session_state["meta_facturacion"] = DEFAULT_FACTURACION
+    st.session_state["meta_facturacion"] = 10000.0 # Valor por defecto
 if "presupuesto_ads" not in st.session_state:
-    st.session_state["presupuesto_ads"] = DEFAULT_ADS
+    st.session_state["presupuesto_ads"] = 3000.0 # Valor por defecto
 
-m_fact = st.sidebar.number_input("Meta Facturación ($)", value=st.session_state["meta_facturacion"], step=500.0)
-m_ads = st.sidebar.number_input("Presupuesto Ads ($)", value=st.session_state["presupuesto_ads"], step=100.0)
+m_fact = st.sidebar.number_input("Meta Facturación ($)", value=float(st.session_state["meta_facturacion"]), step=500.0)
+m_ads = st.sidebar.number_input("Presupuesto Ads ($)", value=float(st.session_state["presupuesto_ads"]), step=100.0)
 
 if st.sidebar.button("Aplicar Objetivos"):
     st.session_state["meta_facturacion"] = m_fact
