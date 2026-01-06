@@ -70,7 +70,7 @@ def generar_data_fake():
     def check_asistencia(res):
         if res in ["❌ No Show", "📅 Re-Agendado"]: return 0
         return 1
-    df_ventas['Asistio'] = df_v_fake = df_ventas['Resultado'].apply(check_asistencia)
+    df_ventas['Asistio'] = df_ventas['Resultado'].apply(check_asistencia)
     
     return df_trafico, df_ventas
 
@@ -143,8 +143,9 @@ with tab1:
 with tab2:
     st.subheader("🌪️ Full Funnel & Eficiencia")
     
-    # Preparar datos para el "Super Embudo"
-    suma_trafico = df_trafico.sum()
+    # --- CORRECCIÓN AQUÍ: numeric_only=True ---
+    suma_trafico = df_trafico.sum(numeric_only=True)
+    
     agendas_total = len(df_ventas) # Asumimos que fila en ventas = agendado
     ventas_total = len(df_ventas[df_ventas['Resultado']=="✅ Venta"])
     
