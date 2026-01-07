@@ -118,7 +118,7 @@ meta_fact = st.sidebar.number_input("Meta Facturación ($)", value=100000.0, ste
 # AGREGAMOS ESTA LÍNEA PARA PODER CALCULAR LA BARRA DE PROGRESO DE ADS:
 presupuesto_ads = st.sidebar.number_input("Presupuesto Ads ($)", value=3000.0, step=100.0) 
 pct_operativo = st.sidebar.slider("% Gastos Operativos (Agencia)", 0, 100, 40, help="Porcentaje de la facturación destinado a equipo, herramientas y gastos fijos.")
-)
+
 
 # Lógica de Fechas
 hoy = pd.to_datetime("today").date()
