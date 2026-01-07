@@ -159,13 +159,11 @@ df_g_filtrado = df_gastos.loc[mask_g].copy()
 
 # 1. Ingresos y Ventas
 facturacion_total = df_v_filtrado['Monto ($)'].sum()
-# Calculamos AVO (Average Order Value)
 conteo_ventas = len(df_v_filtrado[df_v_filtrado['Estado_Simple'] == "✅ Venta"])
 avo = (facturacion_total / conteo_ventas) if conteo_ventas > 0 else 0
 
 # 2. Egresos
 gasto_ads = df_g_filtrado['Gasto'].sum()
-# El gasto operativo se calcula sobre la facturación
 gasto_operativo = facturacion_total * (pct_operativo / 100)
 costo_total = gasto_ads + gasto_operativo
 
@@ -173,11 +171,8 @@ costo_total = gasto_ads + gasto_operativo
 profit_neto = facturacion_total - costo_total
 
 # 4. Ratios
-# ROI (Tu fórmula): Facturación / (Ads + Gastos Ops)
 roi_custom = (facturacion_total / costo_total) if costo_total > 0 else 0
-# ROAS (Marketing): Facturación / Ads
 roas = (facturacion_total / gasto_ads) if gasto_ads > 0 else 0
-# Margen Neto %
 margen_neto_pct = (profit_neto / facturacion_total * 100) if facturacion_total > 0 else 0
 
 # --- 7. VISUALIZACIÓN DEL DASHBOARD ---
@@ -185,7 +180,6 @@ margen_neto_pct = (profit_neto / facturacion_total * 100) if facturacion_total >
 # SECCIÓN 1: ESTADO FINANCIERO (BRUTO + BARRAS)
 st.markdown("### 💰 Estado Financiero (Flash Report)")
 
-# Cálculos barras
 if meta_fact > 0:
     progreso_fact = min(facturacion_total / meta_fact, 1.0)
 else:
@@ -221,31 +215,20 @@ st.markdown("---")
 # SECCIÓN 2: ESTADO DE RESULTADOS (P&L)
 st.markdown("### 📉 Estado de Resultados (P&L)")
 r1, r2, r3, r4 = st.columns(4)
-
-with r1:
-    st.metric("Facturación", f"${facturacion_total:,.2f}")
-with r2:
-    st.metric("Inversión Ads", f"${gasto_ads:,.2f}")
-with r3:
-    st.metric("Gasto Operativo", f"${gasto_operativo:,.2f}", help=f"Equivale al {pct_operativo}% de la facturación")
-with r4:
-    st.metric("ROI Global", f"{roi_custom:.2f}x", help="Facturación / (Ads + Ops)")
+r1.metric("Facturación", f"${facturacion_total:,.2f}")
+r2.metric("Inversión Ads", f"${gasto_ads:,.2f}")
+r3.metric("Gasto Operativo", f"${gasto_operativo:,.2f}", help=f"Equivale al {pct_operativo}% de la facturación")
+r4.metric("ROI Global", f"{roi_custom:.2f}x", help="Facturación / (Ads + Ops)")
 
 st.markdown("---")
 
 # SECCIÓN 3: UNIT ECONOMICS & UTILIDAD
 st.markdown("### 📊 Utilidad & Ticket Promedio (AVO)")
 u1, u2, u3, u4 = st.columns(4)
-
-with u1:
-    st.metric("Facturación", f"${facturacion_total:,.2f}")
-with u2:
-    st.metric("Gasto Total (Ads+Ops)", f"${costo_total:,.2f}", delta="Costo Estructural", delta_color="inverse")
-with u3:
-    color_util = "normal" if profit_neto > 0 else "inverse"
-    st.metric("Utilidad Neta", f"${profit_neto:,.2f}", delta_color=color_util)
-with u4:
-    st.metric("Ticket Promedio (AVO)", f"${avo:,.2f}", help="Valor Promedio por Venta Cerrada")
+u1.metric("Facturación", f"${facturacion_total:,.2f}")
+u2.metric("Gasto Total (Ads+Ops)", f"${costo_total:,.2f}", delta="Costo Estructural", delta_color="inverse")
+u3.metric("Utilidad Neta", f"${profit_neto:,.2f}", delta_color="normal" if profit_neto > 0 else "inverse")
+u4.metric("Ticket Promedio (AVO)", f"${avo:,.2f}", help="Valor Promedio por Venta Cerrada")
 
 st.markdown("---")
 
@@ -283,19 +266,15 @@ with c2:
                 {'range': [1, 1.5], 'color': "lightgray"},
                 {'range': [1.5, 5], 'color': "#00CC96"}
             ],
-            'threshold': {
-                'line': {'color': "red", 'width': 4},
-                'thickness': 0.75,
-                'value': 1.0
-            }
+            'threshold': {'line': {'color': "red", 'width': 4}, 'thickness': 0.75, 'value': 1.0}
         }
     ))
     fig_gauge.update_layout(height=400)
     st.plotly_chart(fig_gauge, use_container_width=True)
 
-# SECCIÓN 5: PROYECCIONES
+# SECCIÓN 5: PROYECCIONES & GRÁFICO DIARIO (AQUÍ ESTÁ LA ACTUALIZACIÓN)
 st.markdown("---")
-st.subheader("📈 Proyecciones & Pacing Mensual")
+st.subheader("📈 Proyecciones & Dinámica Diaria")
 
 dias_mes = (pd.Timestamp(year=hoy.year, month=hoy.month, day=1) + pd.tseries.offsets.MonthEnd(0)).day
 dia_actual = hoy.day
@@ -313,17 +292,31 @@ with col_proy1:
     p3.metric("Tiempo Transcurrido", f"{progreso_mes*100:.1f}%")
 
 with col_proy2:
-    st.markdown("#### 📉 Ingresos vs Costo Total (Diario)")
+    st.markdown("#### 📉 Dinámica Diaria: Ingreso, Costo y Utilidad")
     if not df_v_filtrado.empty and not df_g_filtrado.empty:
         v_dia = df_v_filtrado.groupby('Fecha')['Monto ($)'].sum().reset_index()
         g_dia = df_g_filtrado.groupby('Fecha')['Gasto'].sum().reset_index()
         
         df_chart = pd.merge(v_dia, g_dia, on='Fecha', how='outer').fillna(0)
-        df_chart['Costo_Real_Diario'] = df_chart['Gasto'] + (df_chart['Monto ($)'] * (pct_operativo/100))
         
-        fig_trend = px.line(df_chart, x='Fecha', y=['Monto ($)', 'Costo_Real_Diario'], 
-                            title="Dinámica Diaria: Facturación vs Costo Total",
-                            color_discrete_map={"Monto ($)": "#00CC96", "Costo_Real_Diario": "#EF553B"})
+        # --- NUEVOS CÁLCULOS PARA 3 VARIABLES ---
+        df_chart['Costo_Real_Diario'] = df_chart['Gasto'] + (df_chart['Monto ($)'] * (pct_operativo/100))
+        df_chart['Utilidad_Diaria'] = df_chart['Monto ($)'] - df_chart['Costo_Real_Diario']
+        
+        # --- GRÁFICO CON 3 LÍNEAS ---
+        fig_trend = px.line(
+            df_chart, 
+            x='Fecha', 
+            y=['Monto ($)', 'Costo_Real_Diario', 'Utilidad_Diaria'], 
+            color_discrete_map={
+                "Monto ($)": "#00CC96",          # Verde
+                "Costo_Real_Diario": "#EF553B",  # Rojo
+                "Utilidad_Diaria": "#636EFA"     # Azul
+            }
+        )
+        # --- HOVER UNIFICADO (Ventanita mágica) ---
+        fig_trend.update_layout(hovermode="x unified")
+        
         st.plotly_chart(fig_trend, use_container_width=True)
     else:
         st.info("Falta data diaria para graficar tendencias.")
