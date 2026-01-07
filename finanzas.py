@@ -126,10 +126,10 @@ meta_fact = st.sidebar.number_input("Meta Facturación ($)", value=30000.0, step
 presupuesto_ads = st.sidebar.number_input("Presupuesto Ads ($)", value=5000.0, step=100.0) 
 pct_operativo = st.sidebar.slider("% Gastos Operativos (Agencia)", 0, 100, 40, help="Porcentaje de la facturación destinado a equipo, herramientas y gastos fijos.")
 
-# Lógica de Fechas (CORREGIDA)
+# Lógica de Fechas
 hoy = pd.to_datetime("today").date()
 
-if filtro_tiempo == "Este Mes": # Aquí estaba el error "eif"
+if filtro_tiempo == "Este Mes":
     f_inicio, f_fin = hoy.replace(day=1), hoy
 elif filtro_tiempo == "Mes Anterior":
     primer = hoy.replace(day=1)
@@ -157,12 +157,15 @@ df_g_filtrado = df_gastos.loc[mask_g].copy()
 
 # --- 6. CÁLCULOS FINANCIEROS AVANZADOS ---
 
-# 1. Ingresos
+# 1. Ingresos y Ventas
 facturacion_total = df_v_filtrado['Monto ($)'].sum()
+# Calculamos AVO (Average Order Value)
+conteo_ventas = len(df_v_filtrado[df_v_filtrado['Estado_Simple'] == "✅ Venta"])
+avo = (facturacion_total / conteo_ventas) if conteo_ventas > 0 else 0
 
 # 2. Egresos
 gasto_ads = df_g_filtrado['Gasto'].sum()
-# El gasto operativo se calcula sobre la facturación según tu indicación (ej. 40% de lo que entra)
+# El gasto operativo se calcula sobre la facturación
 gasto_operativo = facturacion_total * (pct_operativo / 100)
 costo_total = gasto_ads + gasto_operativo
 
@@ -179,10 +182,10 @@ margen_neto_pct = (profit_neto / facturacion_total * 100) if facturacion_total >
 
 # --- 7. VISUALIZACIÓN DEL DASHBOARD ---
 
-# A. ESTADO FINANCIERO (BARRA PROGRESO INCLUIDA)
-st.markdown("### 💰 Estado Financiero")
+# SECCIÓN 1: ESTADO FINANCIERO (BRUTO + BARRAS)
+st.markdown("### 💰 Estado Financiero (Flash Report)")
 
-# --- CÁLCULOS PARA BARRAS DE PROGRESO ---
+# Cálculos barras
 if meta_fact > 0:
     progreso_fact = min(facturacion_total / meta_fact, 1.0)
 else:
@@ -198,12 +201,10 @@ k1, k2, k3, k4 = st.columns(4)
 with k1:
     st.metric("Facturación", f"${facturacion_total:,.2f}")
     st.progress(progreso_fact)
-    # Mostramos cuánto falta en porcentaje y dinero
     faltante = max(meta_fact - facturacion_total, 0)
     st.caption(f"Meta: ${meta_fact:,.0f} (Faltan ${faltante:,.0f})")
 
 with k2:
-    # Profit Neto (Calculado como: Facturación - Ads - Gastos Operativos)
     color_profit = "normal" if profit_neto > 0 else "inverse"
     st.metric("Profit", f"${profit_neto:,.2f}", delta=f"{margen_neto_pct:.1f}% Margen", delta_color=color_profit)
 
@@ -217,12 +218,42 @@ with k4:
 
 st.markdown("---")
 
-# B. GRÁFICOS FINANCIEROS (WATERFALL & GAUGE)
+# SECCIÓN 2: ESTADO DE RESULTADOS (P&L)
+st.markdown("### 📉 Estado de Resultados (P&L)")
+r1, r2, r3, r4 = st.columns(4)
+
+with r1:
+    st.metric("Facturación", f"${facturacion_total:,.2f}")
+with r2:
+    st.metric("Inversión Ads", f"${gasto_ads:,.2f}")
+with r3:
+    st.metric("Gasto Operativo", f"${gasto_operativo:,.2f}", help=f"Equivale al {pct_operativo}% de la facturación")
+with r4:
+    st.metric("ROI Global", f"{roi_custom:.2f}x", help="Facturación / (Ads + Ops)")
+
+st.markdown("---")
+
+# SECCIÓN 3: UNIT ECONOMICS & UTILIDAD
+st.markdown("### 📊 Utilidad & Ticket Promedio (AVO)")
+u1, u2, u3, u4 = st.columns(4)
+
+with u1:
+    st.metric("Facturación", f"${facturacion_total:,.2f}")
+with u2:
+    st.metric("Gasto Total (Ads+Ops)", f"${costo_total:,.2f}", delta="Costo Estructural", delta_color="inverse")
+with u3:
+    color_util = "normal" if profit_neto > 0 else "inverse"
+    st.metric("Utilidad Neta", f"${profit_neto:,.2f}", delta_color=color_util)
+with u4:
+    st.metric("Ticket Promedio (AVO)", f"${avo:,.2f}", help="Valor Promedio por Venta Cerrada")
+
+st.markdown("---")
+
+# SECCIÓN 4: GRÁFICOS (WATERFALL & GAUGE)
 c1, c2 = st.columns([2, 1])
 
 with c1:
     st.subheader("💧 Flujo de Rentabilidad (Waterfall)")
-    # Crear datos para Waterfall
     fig_waterfall = go.Figure(go.Waterfall(
         name = "20", orientation = "v",
         measure = ["relative", "relative", "relative", "total"],
@@ -248,9 +279,9 @@ with c2:
             'axis': {'range': [None, 5]},
             'bar': {'color': "#636EFA"},
             'steps': [
-                {'range': [0, 1], 'color': "#EF553B"}, # Pérdida
-                {'range': [1, 1.5], 'color': "lightgray"}, # Breakeven/Bajo
-                {'range': [1.5, 5], 'color': "#00CC96"} # Ganancia
+                {'range': [0, 1], 'color': "#EF553B"},
+                {'range': [1, 1.5], 'color': "lightgray"},
+                {'range': [1.5, 5], 'color': "#00CC96"}
             ],
             'threshold': {
                 'line': {'color': "red", 'width': 4},
@@ -262,11 +293,10 @@ with c2:
     fig_gauge.update_layout(height=400)
     st.plotly_chart(fig_gauge, use_container_width=True)
 
-# C. PROYECCIONES Y TENDENCIAS
+# SECCIÓN 5: PROYECCIONES
 st.markdown("---")
 st.subheader("📈 Proyecciones & Pacing Mensual")
 
-# Cálculos de Proyección
 dias_mes = (pd.Timestamp(year=hoy.year, month=hoy.month, day=1) + pd.tseries.offsets.MonthEnd(0)).day
 dia_actual = hoy.day
 progreso_mes = dia_actual / dias_mes
@@ -285,13 +315,10 @@ with col_proy1:
 with col_proy2:
     st.markdown("#### 📉 Ingresos vs Costo Total (Diario)")
     if not df_v_filtrado.empty and not df_g_filtrado.empty:
-        # Agrupar diario
         v_dia = df_v_filtrado.groupby('Fecha')['Monto ($)'].sum().reset_index()
         g_dia = df_g_filtrado.groupby('Fecha')['Gasto'].sum().reset_index()
         
-        # Merge para gráfico combinado
         df_chart = pd.merge(v_dia, g_dia, on='Fecha', how='outer').fillna(0)
-        # Sumar el % operativo al gasto diario de ads para ver costo real diario
         df_chart['Costo_Real_Diario'] = df_chart['Gasto'] + (df_chart['Monto ($)'] * (pct_operativo/100))
         
         fig_trend = px.line(df_chart, x='Fecha', y=['Monto ($)', 'Costo_Real_Diario'], 
@@ -301,11 +328,10 @@ with col_proy2:
     else:
         st.info("Falta data diaria para graficar tendencias.")
 
-# D. EFICIENCIA COMERCIAL (FUNNEL)
+# SECCIÓN 6: FUNNEL
 st.markdown("---")
 st.subheader("📢 Eficiencia del Embudo Comercial")
 
-# Datos Funnel
 leads = len(df_v_filtrado)
 asistencias = df_v_filtrado['Es_Asistencia'].sum()
 ventas = len(df_v_filtrado[df_v_filtrado['Estado_Simple'] == "✅ Venta"])
