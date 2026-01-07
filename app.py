@@ -299,9 +299,21 @@ with tab1:
                 'Ventas': x['Estado_Simple'].eq("✅ Venta").sum()
             })
         ).reset_index()
+        
         ranking['% Cierre'] = (ranking['Ventas'] / ranking['Asistencias'] * 100).fillna(0)
         ranking = ranking.sort_values('Facturado', ascending=False)
-        st.dataframe(ranking.style.format({'Facturado': '${:,.2f}', '% Cierre': '{:.2f}%'}), use_container_width=True)
+        
+        # AQUÍ ESTÁ EL CAMBIO:
+        # Se agregaron 'Asistencias' y 'Ventas' con formato '{:.0f}'
+        st.dataframe(
+            ranking.style.format({
+                'Facturado': '${:,.2f}',    # Mantiene los 2 decimales de dinero
+                'Asistencias': '{:.0f}',    # 0 decimales (número entero)
+                'Ventas': '{:.0f}',         # 0 decimales (número entero)
+                '% Cierre': '{:.1f}%'       # 1 decimal para el porcentaje
+            }), 
+            use_container_width=True
+        )
 
 with tab2:
     v_dia = df_v_filtrado.groupby('Fecha')['Monto ($)'].sum().reset_index()
@@ -310,5 +322,6 @@ with tab2:
         g_dia = df_g_filtrado.groupby('Fecha')['Gasto'].sum().reset_index()
         fig_fin.add_scatter(x=g_dia['Fecha'], y=g_dia['Gasto'], mode='lines+markers', name='Gasto Ads', line=dict(color='red'))
     st.plotly_chart(fig_fin, use_container_width=True)
+
 
 
