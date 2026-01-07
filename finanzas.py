@@ -3,6 +3,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
+import extra_streamlit_components as stx # <--- LIBRERÍA NECESARIA
 
 # --- 1. CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(page_title="CFO Dashboard | Creamos Negocios", page_icon="💼", layout="wide")
@@ -24,12 +25,21 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. PANTALLA DE BIENVENIDA (CON CONTRASEÑA) ---
+# --- 3. PANTALLA DE BIENVENIDA (CON COOKIES) ---
 def pantalla_bienvenida():
-    if "ingreso_confirmado" not in st.session_state:
-        st.session_state["ingreso_confirmado"] = False
+    # Inicializar el Gestor de Cookies
+    cookie_manager = stx.CookieManager(key="cookie_manager_finanzas")
+    
+    # Verificamos si ya existe la cookie de acceso
+    cookie_auth = cookie_manager.get(cookie="acceso_concedido")
 
-    if st.session_state["ingreso_confirmado"]:
+    # Si la cookie es válida, pasamos directo
+    if cookie_auth == "FinanzasCN2026_OK":
+        st.session_state["ingreso_confirmado"] = True
+        return True
+
+    # Si ya está en session_state (para la sesión actual), pasamos
+    if "ingreso_confirmado" in st.session_state and st.session_state["ingreso_confirmado"]:
         return True
 
     col1, col2, col3 = st.columns([1, 2, 1])
@@ -44,7 +54,14 @@ def pantalla_bienvenida():
 
         if st.button("Acceder a Finanzas CN📊", type="primary", use_container_width=True):
             if password == "FinanzasCN2026":
+                # 1. Guardar en Session State (Inmediato)
                 st.session_state["ingreso_confirmado"] = True
+                
+                # 2. Guardar Cookie (Persistente 1 día)
+                # expires_at define cuándo caduca. Aquí puesto a 1 día.
+                cookie_manager.set("acceso_concedido", "FinanzasCN2026_OK", expires_at=datetime.now() + timedelta(days=1))
+                
+                # 3. Recargar para aplicar cambios
                 st.rerun()
             else:
                 st.error("🔒 Contraseña incorrecta. Intenta de nuevo.")
@@ -53,6 +70,7 @@ def pantalla_bienvenida():
 
 if not pantalla_bienvenida():
     st.stop()
+
 # --- 4. CARGA DE DATOS ---
 st.title("💼 Dashboard Financiero & Rentabilidad")
 
@@ -305,11 +323,11 @@ with col_proy2:
         
         df_chart = pd.merge(v_dia, g_dia, on='Fecha', how='outer').fillna(0)
         
-        # --- NUEVOS CÁLCULOS PARA 3 VARIABLES ---
+        # --- CÁLCULOS 3 VARIABLES ---
         df_chart['Costo_Real_Diario'] = df_chart['Gasto'] + (df_chart['Monto ($)'] * (pct_operativo/100))
-        df_chart['Utilidad_Diaria'] = df_chart['Monto ($)'] - df_chart['Costo_Real_Diario']
+        df_chart['Utilidad_Diaria'] = df_chart['Monto ($)'] - df_chart['Costo_Real_Diario'] # Línea Azul
         
-        # --- GRÁFICO CON 3 LÍNEAS ---
+        # --- GRÁFICO 3 LÍNEAS + HOVER UNIFICADO ---
         fig_trend = px.line(
             df_chart, 
             x='Fecha', 
@@ -320,9 +338,7 @@ with col_proy2:
                 "Utilidad_Diaria": "#636EFA"     # Azul
             }
         )
-        # --- HOVER UNIFICADO (Ventanita mágica) ---
-        fig_trend.update_layout(hovermode="x unified")
-        
+        fig_trend.update_layout(hovermode="x unified") # Muestra todo en una etiqueta
         st.plotly_chart(fig_trend, use_container_width=True)
     else:
         st.info("Falta data diaria para graficar tendencias.")
