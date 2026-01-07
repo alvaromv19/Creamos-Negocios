@@ -243,9 +243,9 @@ if filtro_tiempo == "Este Mes":
 # FINANZAS
 st.markdown("### 💰 Estado Financiero")
 k1, k2, k3, k4 = st.columns(4)
-k1.metric("Facturación", f"${facturacion:,.0f}")
-k2.metric("Profit", f"${profit:,.0f}", delta=profit)
-k3.metric("Inversión Ads", f"${inversion_ads:,.0f}")
+k1.metric("Facturación", f"${facturacion:,.2f}")
+k2.metric("Profit", f"${profit:,.2f}", delta=profit)
+k3.metric("Inversión Ads", f"${inversion_ads:,.2f}")
 delta_roas = roas - 1
 k4.metric("ROAS", f"{roas:.2f}x", delta=f"{delta_roas:.2f} vs Objetivo" if roas > 0 else 0)
 
@@ -301,7 +301,7 @@ with tab1:
         ).reset_index()
         ranking['% Cierre'] = (ranking['Ventas'] / ranking['Asistencias'] * 100).fillna(0)
         ranking = ranking.sort_values('Facturado', ascending=False)
-        st.dataframe(ranking.style.format({'Facturado': '${:,.0f}', '% Cierre': '{:.1f}%'}), use_container_width=True)
+        st.dataframe(ranking.style.format({'Facturado': '${:,.2f}', '% Cierre': '{:.2f}%'}), use_container_width=True)
 
 with tab2:
     v_dia = df_v_filtrado.groupby('Fecha')['Monto ($)'].sum().reset_index()
@@ -310,4 +310,5 @@ with tab2:
         g_dia = df_g_filtrado.groupby('Fecha')['Gasto'].sum().reset_index()
         fig_fin.add_scatter(x=g_dia['Fecha'], y=g_dia['Gasto'], mode='lines+markers', name='Gasto Ads', line=dict(color='red'))
     st.plotly_chart(fig_fin, use_container_width=True)
+
 
