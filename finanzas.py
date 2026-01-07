@@ -177,7 +177,47 @@ margen_neto_pct = (profit_neto / facturacion_total * 100) if facturacion_total >
 
 # --- 7. VISUALIZACIÓN DEL DASHBOARD ---
 
+# --- 7. VISUALIZACIÓN DEL DASHBOARD ---
+
 # A. KPIs PRINCIPALES (TOP ROW)
+st.markdown("### 💰 Estado Financiero")
+
+# --- CÁLCULOS PARA BARRAS DE PROGRESO ---
+if meta_fact > 0:
+    progreso_fact = min(facturacion_total / meta_fact, 1.0)
+else:
+    progreso_fact = 0
+
+if presupuesto_ads > 0:
+    progreso_ads = min(gasto_ads / presupuesto_ads, 1.0)
+else:
+    progreso_ads = 0
+
+k1, k2, k3, k4 = st.columns(4)
+
+with k1:
+    st.metric("Facturación", f"${facturacion_total:,.2f}")
+    st.progress(progreso_fact)
+    # Mostramos cuánto falta en porcentaje y dinero
+    faltante = max(meta_fact - facturacion_total, 0)
+    st.caption(f"Meta: ${meta_fact:,.0f} (Faltan ${faltante:,.0f})")
+
+with k2:
+    # Profit Neto (Calculado como: Facturación - Ads - Gastos Operativos)
+    color_profit = "normal" if profit_neto > 0 else "inverse"
+    st.metric("Profit", f"${profit_neto:,.2f}", delta=f"{margen_neto_pct:.1f}% Margen", delta_color=color_profit)
+
+with k3:
+    st.metric("Inversión Ads", f"${gasto_ads:,.2f}")
+    st.progress(progreso_ads)
+    st.caption(f"{progreso_ads*100:.1f}% del Budget (${presupuesto_ads:,.0f})")
+
+with k4:
+    st.metric("ROAS", f"{roas:.2f}x", delta="Objetivo > 2x") # Puedes ajustar el delta según tu KPI
+
+st.markdown("---")
+
+# B. KPIs PRINCIPALES (TOP ROW)
 st.markdown("### 📊 Estado de Resultados (P&L)")
 k1, k2, k3, k4 = st.columns(4)
 
@@ -195,7 +235,7 @@ with k4:
 
 st.markdown("---")
 
-# B. GRÁFICOS FINANCIEROS (WATERFALL & GAUGE)
+# C. GRÁFICOS FINANCIEROS (WATERFALL & GAUGE)
 c1, c2 = st.columns([2, 1])
 
 with c1:
@@ -240,7 +280,7 @@ with c2:
     fig_gauge.update_layout(height=400)
     st.plotly_chart(fig_gauge, use_container_width=True)
 
-# C. PROYECCIONES Y TENDENCIAS
+# D. PROYECCIONES Y TENDENCIAS
 st.markdown("---")
 st.subheader("📈 Proyecciones & Pacing Mensual")
 
@@ -279,7 +319,7 @@ with col_proy2:
     else:
         st.info("Falta data diaria para graficar tendencias.")
 
-# D. EFICIENCIA COMERCIAL (FUNNEL)
+# E. EFICIENCIA COMERCIAL (FUNNEL)
 st.markdown("---")
 st.subheader("📢 Eficiencia del Embudo Comercial")
 
