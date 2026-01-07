@@ -140,7 +140,7 @@ else: # Año Actual
 
 st.sidebar.success(f"Analizando: {f_inicio} ➡ {f_fin}")
 st.sidebar.markdown("---")
-
+))
 # Inputs Financieros
 st.sidebar.subheader("💰 Estructura de Costos")
 meta_fact = st.sidebar.number_input("Meta Facturación ($)", value=30000.0, step=1000.0)
