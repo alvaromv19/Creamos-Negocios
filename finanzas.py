@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 # --- 1. CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(page_title="Agency Command Center", page_icon="🚀", layout="wide")
 
-# --- 2. ESTILOS CSS PRO ---
+# --- 2. ESTILOS CSS ---
 st.markdown("""
     <style>
     /* Tarjetas Métricas */
@@ -99,6 +99,7 @@ def cargar_datos():
         if col_campana:
             df_v.rename(columns={col_campana: 'Campaña'}, inplace=True)
         else:
+            # Si no encuentra por nombre, intenta por posición (Columna L es index 11)
             if len(df_v.columns) > 11:
                 col_L = df_v.columns[11]
                 df_v.rename(columns={col_L: 'Campaña'}, inplace=True)
@@ -339,9 +340,9 @@ with tab_fin:
         fig_gauge.update_layout(height=400)
         st.plotly_chart(fig_gauge, use_container_width=True)
 
-    # PROYECCIONES Y GRÁFICO DIARIO (MODIFICADO AQUÍ)
+    # PROYECCIONES Y GRÁFICO DIARIO (MEJORADO CON 3 LÍNEAS Y HOVER UNIFICADO)
     st.markdown("---")
-    st.subheader("📈 Proyecciones & Pacing Mensual")
+    st.subheader("📈 Proyecciones & Dinámica Diaria")
     dias_mes = (pd.Timestamp(year=hoy.year, month=hoy.month, day=1) + pd.tseries.offsets.MonthEnd(0)).day
     dia_actual = hoy.day
     proyeccion_cierre = (facturacion_total / dia_actual * dias_mes) if dia_actual > 0 else 0
@@ -372,10 +373,10 @@ with tab_fin:
                 color_discrete_map={
                     "Monto ($)": "#00CC96",          # Verde
                     "Costo_Real_Diario": "#EF553B",  # Rojo
-                    "Utilidad_Diaria": "#636EFA"     # Azul (Nueva)
+                    "Utilidad_Diaria": "#636EFA"     # Azul
                 }
             )
-            # TOOLTIP UNIFICADO (La ventanita mágica)
+            # TOOLTIP UNIFICADO
             fig_trend.update_layout(hovermode="x unified")
             
             st.plotly_chart(fig_trend, use_container_width=True)
@@ -397,7 +398,7 @@ with tab_fin:
         st.plotly_chart(fig_funnel, use_container_width=True)
 
 # ==========================================
-# TAB 3: RANKING CLOSERS
+# TAB 3: RANKING CLOSERS (SIN DECIMALES)
 # ==========================================
 with tab_close:
     st.subheader("🏆 Performance del Equipo")
@@ -416,8 +417,8 @@ with tab_close:
         st.dataframe(
             ranking.style.format({
                 'Facturado': '${:,.2f}',
-                'Asistencias': '{:.0f}',
-                'Ventas': '{:.0f}',
+                'Asistencias': '{:.0f}',  # Enteros
+                'Ventas': '{:.0f}',       # Enteros
                 '% Cierre': '{:.1f}%'
             }), 
             use_container_width=True
@@ -426,7 +427,7 @@ with tab_close:
         st.info("No hay datos de closers.")
 
 # ==========================================
-# TAB 4: RENDIMIENTO ADS
+# TAB 4: RENDIMIENTO ADS (SIN DECIMALES)
 # ==========================================
 with tab_ads:
     st.subheader("📢 Rendimiento por Campaña")
@@ -442,8 +443,8 @@ with tab_ads:
         st.dataframe(
             ads_perf.style.format({
                 'Ingresos ($)': '${:,.2f}',
-                'Ventas (#)': '{:.0f}',
-                'Leads (#)': '{:.0f}'
+                'Ventas (#)': '{:.0f}', # Enteros
+                'Leads (#)': '{:.0f}'   # Enteros
             }),
             use_container_width=True
         )
