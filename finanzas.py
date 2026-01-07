@@ -112,12 +112,12 @@ if df_ventas.empty:
     st.stop()
 
 # --- 5. SIDEBAR FINANCIERA ---
-st.sidebar.header("⚙️ Configuración Financiera")
-
-# Filtros de Tiempo
-filtro_tiempo = st.sidebar.selectbox(
-    "📅 Período de Análisis:",
-    ["Este Mes", "Mes Anterior", "Últimos 30 días", "Este Trimestre", "Año Actual"]
+# Inputs Financieros
+st.sidebar.subheader("💰 Estructura de Costos")
+meta_fact = st.sidebar.number_input("Meta Facturación ($)", value=100000.0, step=1000.0)
+# AGREGAMOS ESTA LÍNEA PARA PODER CALCULAR LA BARRA DE PROGRESO DE ADS:
+presupuesto_ads = st.sidebar.number_input("Presupuesto Ads ($)", value=3000.0, step=100.0) 
+pct_operativo = st.sidebar.slider("% Gastos Operativos (Agencia)", 0, 100, 40, help="Porcentaje de la facturación destinado a equipo, herramientas y gastos fijos.")
 )
 
 # Lógica de Fechas
