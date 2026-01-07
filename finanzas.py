@@ -24,7 +24,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. PANTALLA DE BIENVENIDA ---
+# --- 3. PANTALLA DE BIENVENIDA (CON CONTRASEÑA) ---
 def pantalla_bienvenida():
     if "ingreso_confirmado" not in st.session_state:
         st.session_state["ingreso_confirmado"] = False
@@ -39,14 +39,20 @@ def pantalla_bienvenida():
         st.subheader("Creamos Negocios")
         st.info("Visión financiera de alto nivel: Rentabilidad, ROI y Eficiencia.")
         
-        if st.button("Acceder a Finanzas 📊", type="primary", use_container_width=True):
-            st.session_state["ingreso_confirmado"] = True
-            st.rerun()
+        # --- SECCIÓN DE CONTRASEÑA ---
+        password = st.text_input("Contraseña de Acceso", type="password", placeholder="Ingresa la clave...")
+
+        if st.button("Acceder a Finanzas CN📊", type="primary", use_container_width=True):
+            if password == "FinanzasCN2026":
+                st.session_state["ingreso_confirmado"] = True
+                st.rerun()
+            else:
+                st.error("🔒 Contraseña incorrecta. Intenta de nuevo.")
+                
     return False
 
 if not pantalla_bienvenida():
     st.stop()
-
 # --- 4. CARGA DE DATOS ---
 st.title("💼 Dashboard Financiero & Rentabilidad")
 
