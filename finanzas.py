@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 # --- 1. CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(page_title="CFO Dashboard | Creamos Negocios", page_icon="💼", layout="wide")
 
-# --- 2. ESTILOS CSS PERSONALIZADOS (PARA DARLE TOQUE PRO) ---
+# --- 2. ESTILOS CSS PERSONALIZADOS ---
 st.markdown("""
     <style>
     .metric-card {
@@ -112,17 +112,24 @@ if df_ventas.empty:
     st.stop()
 
 # --- 5. SIDEBAR FINANCIERA ---
+st.sidebar.header("⚙️ Configuración")
+
+# Filtros de Tiempo
+filtro_tiempo = st.sidebar.selectbox(
+    "📅 Período de Análisis:",
+    ["Este Mes", "Mes Anterior", "Últimos 30 días", "Este Trimestre", "Año Actual"]
+)
+
 # Inputs Financieros
 st.sidebar.subheader("💰 Estructura de Costos")
-meta_fact = st.sidebar.number_input("Meta Facturación ($)", value=100000.0, step=1000.0)
-# AGREGAMOS ESTA LÍNEA PARA PODER CALCULAR LA BARRA DE PROGRESO DE ADS:
-presupuesto_ads = st.sidebar.number_input("Presupuesto Ads ($)", value=3000.0, step=100.0) 
+meta_fact = st.sidebar.number_input("Meta Facturación ($)", value=30000.0, step=1000.0)
+presupuesto_ads = st.sidebar.number_input("Presupuesto Ads ($)", value=5000.0, step=100.0) 
 pct_operativo = st.sidebar.slider("% Gastos Operativos (Agencia)", 0, 100, 40, help="Porcentaje de la facturación destinado a equipo, herramientas y gastos fijos.")
 
-
-# Lógica de Fechas
+# Lógica de Fechas (CORREGIDA)
 hoy = pd.to_datetime("today").date()
-eif filtro_tiempo == "Este Mes":
+
+if filtro_tiempo == "Este Mes": # Aquí estaba el error "eif"
     f_inicio, f_fin = hoy.replace(day=1), hoy
 elif filtro_tiempo == "Mes Anterior":
     primer = hoy.replace(day=1)
@@ -140,11 +147,6 @@ else: # Año Actual
 
 st.sidebar.success(f"Analizando: {f_inicio} ➡ {f_fin}")
 st.sidebar.markdown("---")
-
-# Inputs Financieros
-st.sidebar.subheader("💰 Estructura de Costos")
-meta_fact = st.sidebar.number_input("Meta Facturación ($)", value=30000.0, step=1000.0)
-pct_operativo = st.sidebar.slider("% Gastos Operativos (Agencia)", 0, 100, 40, help="Porcentaje de la facturación destinado a equipo, herramientas y gastos fijos.")
 
 # Filtrado de DataFrames
 mask_v = (df_ventas['Fecha'].dt.date >= f_inicio) & (df_ventas['Fecha'].dt.date <= f_fin)
@@ -177,9 +179,7 @@ margen_neto_pct = (profit_neto / facturacion_total * 100) if facturacion_total >
 
 # --- 7. VISUALIZACIÓN DEL DASHBOARD ---
 
-# --- 7. VISUALIZACIÓN DEL DASHBOARD ---
-
-# A. KPIs PRINCIPALES (TOP ROW)
+# A. ESTADO FINANCIERO (BARRA PROGRESO INCLUIDA)
 st.markdown("### 💰 Estado Financiero")
 
 # --- CÁLCULOS PARA BARRAS DE PROGRESO ---
@@ -213,29 +213,11 @@ with k3:
     st.caption(f"{progreso_ads*100:.1f}% del Budget (${presupuesto_ads:,.0f})")
 
 with k4:
-    st.metric("ROAS", f"{roas:.2f}x", delta="Objetivo > 2x") # Puedes ajustar el delta según tu KPI
+    st.metric("ROAS", f"{roas:.2f}x", delta="Objetivo > 2x") 
 
 st.markdown("---")
 
-# B. KPIs PRINCIPALES (TOP ROW)
-st.markdown("### 📊 Estado de Resultados (P&L)")
-k1, k2, k3, k4 = st.columns(4)
-
-with k1:
-    st.metric("Facturación Total", f"${facturacion_total:,.2f}", help="Ingresos brutos cerrados")
-with k2:
-    st.metric("Costos Totales (Ads+Ops)", f"${costo_total:,.2f}", delta=f"-${gasto_ads:,.2f} Ads", delta_color="inverse")
-with k3:
-    # Color dinámico para Profit
-    color_profit = "normal" if profit_neto > 0 else "inverse"
-    st.metric("Profit Neto (Real)", f"${profit_neto:,.2f}", delta=f"{margen_neto_pct:.1f}% Margen", delta_color=color_profit)
-with k4:
-    # ROI Custom
-    st.metric("ROI Global (Eficiencia)", f"{roi_custom:.2f}x", help="Facturación / (Ads + Operativos)", delta="Meta > 1.5x")
-
-st.markdown("---")
-
-# C. GRÁFICOS FINANCIEROS (WATERFALL & GAUGE)
+# B. GRÁFICOS FINANCIEROS (WATERFALL & GAUGE)
 c1, c2 = st.columns([2, 1])
 
 with c1:
@@ -280,7 +262,7 @@ with c2:
     fig_gauge.update_layout(height=400)
     st.plotly_chart(fig_gauge, use_container_width=True)
 
-# D. PROYECCIONES Y TENDENCIAS
+# C. PROYECCIONES Y TENDENCIAS
 st.markdown("---")
 st.subheader("📈 Proyecciones & Pacing Mensual")
 
@@ -319,7 +301,7 @@ with col_proy2:
     else:
         st.info("Falta data diaria para graficar tendencias.")
 
-# E. EFICIENCIA COMERCIAL (FUNNEL)
+# D. EFICIENCIA COMERCIAL (FUNNEL)
 st.markdown("---")
 st.subheader("📢 Eficiencia del Embudo Comercial")
 
