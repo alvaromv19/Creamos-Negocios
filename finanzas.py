@@ -122,7 +122,7 @@ pct_operativo = st.sidebar.slider("% Gastos Operativos (Agencia)", 0, 100, 40, h
 
 # Lógica de Fechas
 hoy = pd.to_datetime("today").date()
-if filtro_tiempo == "Este Mes":
+eif filtro_tiempo == "Este Mes":
     f_inicio, f_fin = hoy.replace(day=1), hoy
 elif filtro_tiempo == "Mes Anterior":
     primer = hoy.replace(day=1)
