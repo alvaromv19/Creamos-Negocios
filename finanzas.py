@@ -242,7 +242,7 @@ r1, r2, r3, r4 = st.columns(4)
 r1.metric("Facturación", f"${facturacion_total:,.2f}")
 r2.metric("Inversión Ads", f"${gasto_ads:,.2f}")
 r3.metric("Gasto Operativo", f"${gasto_operativo:,.2f}", help=f"Equivale al {pct_operativo}% de la facturación")
-r4.metric("ROI Global", f"{roi_custom:.2f}x", help="Facturación / (Ads + Ops)")
+r4.metric("ROI Global", f"{roi_custom:.2f}x", help="Facturación / (Gasto ads + Gastos Operativos)")
 
 st.markdown("---")
 
