@@ -247,7 +247,7 @@ r4.metric("ROI Global", f"{roi_custom:.2f}x", help="Facturación / (Gasto ads + 
 st.markdown("---")
 
 # SECCIÓN 3: UNIT ECONOMICS & UTILIDAD
-st.markdown("### 📊 Utilidad & Ticket Promedio (AVO)")
+st.markdown("### 📊 Utilidad & Ticket Promedio (AOV)")
 u1, u2, u3, u4 = st.columns(4)
 u1.metric("Facturación", f"${facturacion_total:,.2f}")
 u2.metric("Gasto Total (Ads+Ops)", f"${costo_total:,.2f}", delta="Costo Estructural", delta_color="inverse")
