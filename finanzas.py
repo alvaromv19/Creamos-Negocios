@@ -192,7 +192,7 @@ gasto_operativo = facturacion_total * (pct_operativo / 100)
 costo_total = gasto_ads + gasto_operativo
 
 # 3. Resultados
-profit_neto = facturacion_total - costo_total
+profit_neto = facturacion_total - gasto_ads
 
 # 4. Ratios
 roi_custom = (facturacion_total / costo_total) if costo_total > 0 else 0
