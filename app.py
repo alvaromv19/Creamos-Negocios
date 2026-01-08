@@ -219,13 +219,13 @@ gasto_promedio_actual = gasto_mes_total / dia_hoy if dia_hoy > 0 else 0
 
 # SECCIÓN PROYECCIONES (SOLO "ESTE MES")
 if filtro_tiempo == "Este Mes":
-    st.markdown("### 🎯 Proyecciones del Mes (Pacing)")
+    st.markdown("### 🎯 Proyecciones del Mes")
     col_p1, col_p2, col_p3 = st.columns(3)
     
     with col_p1:
         st.metric("Meta Facturación", f"${meta_fact:,.0f}")
         st.progress(progreso_facturacion)
-        st.caption(f"Progreso: {progreso_facturacion*100:.1f}%")
+        st.caption(f"Progreso: {progreso_facturacion*100:.2f}%")
         
     with col_p2:
         st.metric("Falta para Meta", f"${faltante_facturacion:,.0f}", delta=f"Proy. Cierre: ${proyeccion_cierre:,.0f}")
@@ -237,17 +237,18 @@ if filtro_tiempo == "Este Mes":
         if delta_gasto < 0:
             st.warning(f"⚠️ Estás gastando ${abs(delta_gasto):.0f} de MÁS por día.")
         else:
-            st.caption(f"Estás gastando ${gasto_promedio_actual:.0f}/día (Bien)")
+            st.caption(f"Gasto actual ${gasto_promedio_actual:.0f}/día")
     st.divider()
 
 # FINANZAS
 st.markdown("### 💰 Estado Financiero")
-k1, k2, k3, k4 = st.columns(4)
+k1, k2, k3, k4, k5 = st.columns(5)
 k1.metric("Facturación", f"${facturacion:,.2f}")
-k2.metric("Profit", f"${profit:,.2f}", delta=profit)
-k3.metric("Inversión Ads", f"${inversion_ads:,.2f}")
+k2.metric("Profit", f"${profit:,.2f}")
 delta_roas = roas - 3.5
-k4.metric("ROAS (3.5X)", f"{roas:.2f}x", delta=f"{delta_roas:.2f}" if roas > 0 else 0)
+k3.metric("ROAS (3.5X)", f"{roas:.2f}x", delta=f"+{delta_roas:.2f}" if roas > 0 else 0)
+k4.metric("Ventas", f"${ventas_cerradas:,.0f}"), f"AOV ${facturacion / ventas_cerradas}, help="AOV(valor de la venta)
+k5.metric("Inversión Ads", f"${inversion_ads:,.2f}")
 
 st.divider()
 
@@ -354,5 +355,6 @@ with tab2:
     fig_fin.update_traces(hovertemplate="$%{y:,.2f}") 
 
     st.plotly_chart(fig_fin, use_container_width=True)
+
 
 
