@@ -296,52 +296,59 @@ with c2:
     fig_gauge.update_layout(height=400)
     st.plotly_chart(fig_gauge, use_container_width=True)
 
-# SECCIÓN 5: PROYECCIONES & GRÁFICO DIARIO (AQUÍ ESTÁ LA ACTUALIZACIÓN)
+# SECCIÓN 5: PROYECCIONES & GRÁFICO DIARIO (MODIFICADO VERTICALMENTE)
 st.markdown("---")
 st.subheader("📈 Proyecciones & Dinámica Diaria")
 
+# Cálculos de fechas (Se mantienen igual)
 dias_mes = (pd.Timestamp(year=hoy.year, month=hoy.month, day=1) + pd.tseries.offsets.MonthEnd(0)).day
 dia_actual = hoy.day
 progreso_mes = dia_actual / dias_mes
 proyeccion_cierre = (facturacion_total / dia_actual * dias_mes) if dia_actual > 0 else 0
 
-col_proy1, col_proy2 = st.columns(2)
+# --- PARTE 1: PACING (Ahora ocupa todo el ancho) ---
+st.markdown("#### 🎯 Pacing vs Meta")
+st.progress(min(facturacion_total / meta_fact, 1.0) if meta_fact > 0 else 0)
 
-with col_proy1:
-    st.markdown("#### 🎯 Pacing vs Meta")
-    st.progress(min(facturacion_total / meta_fact, 1.0) if meta_fact > 0 else 0)
-    p1, p2, p3 = st.columns(3)
-    p1.metric("Meta", f"${meta_fact:,.2f}")
-    p2.metric("Proyección Cierre", f"${proyeccion_cierre:,.2f}", delta=f"{proyeccion_cierre-meta_fact:,.2f}")
-    p3.metric("Tiempo Transcurrido", f"{progreso_mes*100:.1f}%")
+# Usamos columnas INTERNAS solo para las métricas pequeñas, para que queden alineadas
+p1, p2, p3 = st.columns(3) 
+p1.metric("Meta", f"${meta_fact:,.2f}")
+p2.metric("Proyección Cierre", f"${proyeccion_cierre:,.2f}", delta=f"{proyeccion_cierre-meta_fact:,.2f}")
+p3.metric("Tiempo Transcurrido", f"{progreso_mes*100:.1f}%")
 
-with col_proy2:
-    st.markdown("#### 📉 Dinámica Diaria: Ingreso, Costo y Utilidad")
-    if not df_v_filtrado.empty and not df_g_filtrado.empty:
-        v_dia = df_v_filtrado.groupby('Fecha')['Monto ($)'].sum().reset_index()
-        g_dia = df_g_filtrado.groupby('Fecha')['Gasto'].sum().reset_index()
-        
-        df_chart = pd.merge(v_dia, g_dia, on='Fecha', how='outer').fillna(0)
-        
-        # --- CÁLCULOS 3 VARIABLES ---
-        df_chart['Costo_Real_Diario'] = df_chart['Gasto'] + (df_chart['Monto ($)'] * (pct_operativo/100))
-        df_chart['Utilidad_Diaria'] = df_chart['Monto ($)'] - df_chart['Costo_Real_Diario'] # Línea Azul
-        
-        # --- GRÁFICO 3 LÍNEAS + HOVER UNIFICADO ---
-        fig_trend = px.line(
-            df_chart, 
-            x='Fecha', 
-            y=['Monto ($)', 'Costo_Real_Diario', 'Utilidad_Diaria'], 
-            color_discrete_map={
-                "Monto ($)": "#00CC96",          # Verde
-                "Costo_Real_Diario": "#EF553B",  # Rojo
-                "Utilidad_Diaria": "#636EFA"     # Azul
-            }
-        )
-        fig_trend.update_layout(hovermode="x unified") # Muestra todo en una etiqueta
-        st.plotly_chart(fig_trend, use_container_width=True)
-    else:
-        st.info("Falta data diaria para graficar tendencias.")
+st.divider() # Línea separadora visual
+
+# --- PARTE 2: GRÁFICO DIARIO (Ahora ocupa todo el ancho y está debajo) ---
+st.markdown("#### 📉 Dinámica Diaria: Ingreso, Costo y Utilidad")
+
+if not df_v_filtrado.empty and not df_g_filtrado.empty:
+    v_dia = df_v_filtrado.groupby('Fecha')['Monto ($)'].sum().reset_index()
+    g_dia = df_g_filtrado.groupby('Fecha')['Gasto'].sum().reset_index()
+    
+    df_chart = pd.merge(v_dia, g_dia, on='Fecha', how='outer').fillna(0)
+    
+    # Cálculos
+    df_chart['Costo_Real_Diario'] = df_chart['Gasto'] + (df_chart['Monto ($)'] * (pct_operativo/100))
+    df_chart['Utilidad_Diaria'] = df_chart['Monto ($)'] - df_chart['Costo_Real_Diario']
+    
+    # Gráfico
+    fig_trend = px.line(
+        df_chart, 
+        x='Fecha', 
+        y=['Monto ($)', 'Costo_Real_Diario', 'Utilidad_Diaria'], 
+        color_discrete_map={
+            "Monto ($)": "#00CC96",          # Verde
+            "Costo_Real_Diario": "#EF553B",  # Rojo
+            "Utilidad_Diaria": "#636EFA"     # Azul
+        }
+    )
+    fig_trend.update_layout(hovermode="x unified")
+    
+    # Al estar fuera de una columna restringida, el gráfico se expandirá más
+    st.plotly_chart(fig_trend, use_container_width=True)
+else:
+    st.info("Falta data diaria para graficar tendencias.")
+
 
 # SECCIÓN 6: FUNNEL
 st.markdown("---")
