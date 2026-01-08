@@ -47,7 +47,11 @@ def cargar_datos():
         if df_v['Monto ($)'].dtype == 'O': 
             df_v['Monto ($)'] = df_v['Monto ($)'].astype(str).str.replace(r'[$,]', '', regex=True)
         df_v['Monto ($)'] = pd.to_numeric(df_v['Monto ($)'], errors='coerce').fillna(0)
-        df_v['Closer'] = df_v['Closer'].fillna("Sin Asignar")
+        
+        # --- AQUÍ ESTÁ LA CORRECCIÓN ---
+        # Se agrega .astype(str).str.strip() para eliminar espacios duplicadores
+        df_v['Closer'] = df_v['Closer'].fillna("Sin Asignar").astype(str).str.strip()
+        
         df_v['Resultado'] = df_v['Resultado'].fillna("Pendiente")
         
         def clasificar_estado(texto):
@@ -80,7 +84,7 @@ def cargar_datos():
         if {'Fecha', 'Gasto'}.issubset(df_g1.columns): df_g1 = df_g1[['Fecha', 'Gasto']]
         
         df_g2 = pd.read_csv(url_gastos_anual)
-        df_g2 = df_g2.iloc[:, 0:2]
+        df_g2 = df_g2.iloc[:, 0:2] 
         df_g2.columns = ['Fecha', 'Gasto'] 
         df_g2['Fecha'] = pd.to_datetime(df_g2['Fecha'], errors='coerce')
         if df_g2['Gasto'].dtype == 'O': df_g2['Gasto'] = df_g2['Gasto'].astype(str).str.replace(r'[$,]', '', regex=True)
@@ -149,10 +153,11 @@ if closer_sel != "Todos":
 st.sidebar.markdown("---")
 st.sidebar.subheader("🎯 Configuración Objetivos")
 
+# Valores iniciales
 if "meta_facturacion" not in st.session_state:
-    st.session_state["meta_facturacion"] = 30000.0
+    st.session_state["meta_facturacion"] = 30000.0 # Valor por defecto
 if "presupuesto_ads" not in st.session_state:
-    st.session_state["presupuesto_ads"] = 3500.0
+    st.session_state["presupuesto_ads"] = 3500.0 # Valor por defecto
 
 m_fact = st.sidebar.number_input("Meta Facturación ($)", value=float(st.session_state["meta_facturacion"]), step=500.0)
 m_ads = st.sidebar.number_input("Presupuesto Ads ($)", value=float(st.session_state["presupuesto_ads"]), step=100.0)
@@ -173,9 +178,7 @@ total_asistencias = df_v_filtrado['Es_Asistencia'].sum()
 ventas_cerradas = len(df_v_filtrado[df_v_filtrado['Estado_Simple'] == "✅ Venta"])
 tasa_asistencia = (total_asistencias / total_leads * 100) if total_leads > 0 else 0
 tasa_cierre = (ventas_cerradas / total_asistencias * 100) if total_asistencias > 0 else 0
-
-# CÁLCULO AOV (CORREGIDO PARA EVITAR ERROR SI NO HAY VENTAS)
-AOV = (facturacion / ventas_cerradas) if ventas_cerradas > 0 else 0
+AOV = (facturacion / ventas_cerradas)
 
 # Proyecciones
 mes_actual = hoy.month
@@ -211,7 +214,7 @@ gasto_promedio_actual = gasto_mes_total / dia_hoy if dia_hoy > 0 else 0
 
 # --- 7. VISUALES DASHBOARD ---
 
-# SECCIÓN PROYECCIONES
+# SECCIÓN PROYECCIONES (SOLO "ESTE MES")
 if filtro_tiempo == "Este Mes":
     st.markdown("### 🎯 Proyecciones del Mes")
     col_p1, col_p2, col_p3 = st.columns(3)
@@ -234,18 +237,14 @@ if filtro_tiempo == "Este Mes":
             st.caption(f"Gasto actual ${gasto_promedio_actual:.0f}/día")
     st.divider()
 
-# FINANZAS (AQUÍ ESTÁ LA CORRECCIÓN VISUAL)
+# FINANZAS
 st.markdown("### 💰 Estado Financiero")
 k1, k2, k3, k4, k5 = st.columns(5)
 k1.metric("Facturación", f"${facturacion:,.2f}")
 k2.metric("Profit", f"${profit:,.2f}")
 delta_roas = roas - 3.5
 k3.metric("ROAS (3.5X)", f"{roas:.2f}x", delta=f"+{delta_roas:.2f}" if roas > 0 else 0)
-
-# ESTA ES LA LÍNEA QUE ARREGLA EL TEXTO EXTRAÑO
-# Muestra Ventas como número entero, y el AOV en gris abajo sin flecha
-k4.metric("Ventas", f"{ventas_cerradas:,.0f}", delta=f"AOV ${AOV:,.2f}", delta_color="off")
-
+k4.metric("Ventas", f"${ventas_cerradas:,.0f}", delta=f"AOV ${AOV:,.2f}", delta_color="off")
 k5.metric("Inversión Ads", f"${inversion_ads:,.2f}")
 
 st.divider()
