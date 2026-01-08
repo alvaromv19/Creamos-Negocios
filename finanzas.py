@@ -184,7 +184,7 @@ df_g_filtrado = df_gastos.loc[mask_g].copy()
 # 1. Ingresos y Ventas
 facturacion_total = df_v_filtrado['Monto ($)'].sum()
 conteo_ventas = len(df_v_filtrado[df_v_filtrado['Estado_Simple'] == "✅ Venta"])
-avo = (facturacion_total / conteo_ventas) if conteo_ventas > 0 else 0
+aov = (facturacion_total / conteo_ventas) if conteo_ventas > 0 else 0
 
 # 2. Egresos
 gasto_ads = df_g_filtrado['Gasto'].sum()
@@ -252,7 +252,7 @@ u1, u2, u3, u4 = st.columns(4)
 u1.metric("Facturación", f"${facturacion_total:,.2f}")
 u2.metric("Gasto Total (Ads+Ops)", f"${costo_total:,.2f}", delta="Costo Estructural", delta_color="inverse")
 u3.metric("Utilidad Neta", f"${profit_neto:,.2f}", delta_color="normal" if profit_neto > 0 else "inverse")
-u4.metric("Ticket Promedio (AVO)", f"${avo:,.2f}", help="Valor Promedio por Venta Cerrada")
+u4.metric("Ticket Promedio (AOV)", f"${aov:,.2f}", help="Valor Promedio por Venta Cerrada")
 
 st.markdown("---")
 
