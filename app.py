@@ -6,17 +6,14 @@ from datetime import datetime, timedelta
 # --- 1. CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(page_title="Agency Dashboard", page_icon="🚀", layout="wide")
 
-# --- 2. PANTALLA DE BIENVENIDA (SIMPLE Y COMPATIBLE GLOBALMENTE) ---
+# --- 2. PANTALLA DE BIENVENIDA ---
 def pantalla_bienvenida():
-    # Inicializar estado si no existe
     if "ingreso_confirmado" not in st.session_state:
         st.session_state["ingreso_confirmado"] = False
 
-    # Si ya ingresó, pasar directo
     if st.session_state["ingreso_confirmado"]:
         return True
 
-    # Diseño de la Pantalla de Bienvenida
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         st.markdown("<br><br><br>", unsafe_allow_html=True)
@@ -31,21 +28,19 @@ def pantalla_bienvenida():
 
     return False
 
-# Si no ha pasado la bienvenida, detener la ejecución aquí
 if not pantalla_bienvenida():
     st.stop()
 
-# --- 3. CARGA DE DATOS (VENTAS + GASTOS COMBINADOS) ---
+# --- 3. CARGA DE DATOS ---
 st.title("🚀 Creamos Negocios - Dashboard")
 
 @st.cache_data(ttl=300) 
 def cargar_datos():
-    # --- URLS ---
     url_ventas = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQuXaPCen61slzpr1TElxXoCROIxAgmgWT7pyWvel1dxq_Z_U1yZPrVrTbJfx9MwaL8_cluY3v2ywoB/pub?gid=0&single=true&output=csv"
     url_gastos_dic = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQGOLgPTDLie5gEbkViCbpebWfN9S_eb2h2GGlpWLjmfVgzfnwR_ncVTs4IqmKgmAFfxZTQHJlMBrIi/pub?gid=0&single=true&output=csv"
     url_gastos_anual = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTQKTt_taqoH2qNwWbs3t4doLsi0SuGavgdUNvpCKrqtlp5U9GaTqkTt9q-c1eWBnvPN88Qg5t0vXzK/pub?output=csv"
     
-    # --- A. PROCESAR VENTAS ---
+    # PROCESAR VENTAS
     try:
         df_v = pd.read_csv(url_ventas)
         df_v['Fecha'] = pd.to_datetime(df_v['Fecha'], dayfirst=True, errors='coerce')
@@ -76,24 +71,21 @@ def cargar_datos():
     except Exception as e:
         df_v = pd.DataFrame()
 
-    # --- B. PROCESAR GASTOS (COMBINADO DICIEMBRE + ANUAL) ---
+    # PROCESAR GASTOS
     try:
-        # Gasto 1 (Dic)
         df_g1 = pd.read_csv(url_gastos_dic)
         df_g1['Fecha'] = pd.to_datetime(df_g1['Fecha'], dayfirst=True, errors='coerce')
         if df_g1['Gasto'].dtype == 'O': df_g1['Gasto'] = df_g1['Gasto'].astype(str).str.replace(r'[$,]', '', regex=True)
         df_g1['Gasto'] = pd.to_numeric(df_g1['Gasto'], errors='coerce').fillna(0)
         if {'Fecha', 'Gasto'}.issubset(df_g1.columns): df_g1 = df_g1[['Fecha', 'Gasto']]
         
-        # Gasto 2 (Anual)
         df_g2 = pd.read_csv(url_gastos_anual)
-        df_g2 = df_g2.iloc[:, 0:2] # Tomar solo 2 primeras columnas
+        df_g2 = df_g2.iloc[:, 0:2]
         df_g2.columns = ['Fecha', 'Gasto'] 
         df_g2['Fecha'] = pd.to_datetime(df_g2['Fecha'], errors='coerce')
         if df_g2['Gasto'].dtype == 'O': df_g2['Gasto'] = df_g2['Gasto'].astype(str).str.replace(r'[$,]', '', regex=True)
         df_g2['Gasto'] = pd.to_numeric(df_g2['Gasto'], errors='coerce').fillna(0)
 
-        # Unir y ordenar
         df_g = pd.concat([df_g1, df_g2], ignore_index=True).sort_values('Fecha')
     except Exception:
         df_g = pd.DataFrame(columns=['Fecha', 'Gasto'])
@@ -157,11 +149,10 @@ if closer_sel != "Todos":
 st.sidebar.markdown("---")
 st.sidebar.subheader("🎯 Configuración Objetivos")
 
-# Valores iniciales
 if "meta_facturacion" not in st.session_state:
-    st.session_state["meta_facturacion"] = 30000.0 # Valor por defecto
+    st.session_state["meta_facturacion"] = 30000.0
 if "presupuesto_ads" not in st.session_state:
-    st.session_state["presupuesto_ads"] = 3500.0 # Valor por defecto
+    st.session_state["presupuesto_ads"] = 3500.0
 
 m_fact = st.sidebar.number_input("Meta Facturación ($)", value=float(st.session_state["meta_facturacion"]), step=500.0)
 m_ads = st.sidebar.number_input("Presupuesto Ads ($)", value=float(st.session_state["presupuesto_ads"]), step=100.0)
@@ -182,7 +173,9 @@ total_asistencias = df_v_filtrado['Es_Asistencia'].sum()
 ventas_cerradas = len(df_v_filtrado[df_v_filtrado['Estado_Simple'] == "✅ Venta"])
 tasa_asistencia = (total_asistencias / total_leads * 100) if total_leads > 0 else 0
 tasa_cierre = (ventas_cerradas / total_asistencias * 100) if total_asistencias > 0 else 0
-AOV = (facturacion / ventas_cerradas)
+
+# CÁLCULO AOV (CORREGIDO PARA EVITAR ERROR SI NO HAY VENTAS)
+AOV = (facturacion / ventas_cerradas) if ventas_cerradas > 0 else 0
 
 # Proyecciones
 mes_actual = hoy.month
@@ -218,7 +211,7 @@ gasto_promedio_actual = gasto_mes_total / dia_hoy if dia_hoy > 0 else 0
 
 # --- 7. VISUALES DASHBOARD ---
 
-# SECCIÓN PROYECCIONES (SOLO "ESTE MES")
+# SECCIÓN PROYECCIONES
 if filtro_tiempo == "Este Mes":
     st.markdown("### 🎯 Proyecciones del Mes")
     col_p1, col_p2, col_p3 = st.columns(3)
@@ -241,14 +234,18 @@ if filtro_tiempo == "Este Mes":
             st.caption(f"Gasto actual ${gasto_promedio_actual:.0f}/día")
     st.divider()
 
-# FINANZAS
+# FINANZAS (AQUÍ ESTÁ LA CORRECCIÓN VISUAL)
 st.markdown("### 💰 Estado Financiero")
 k1, k2, k3, k4, k5 = st.columns(5)
 k1.metric("Facturación", f"${facturacion:,.2f}")
 k2.metric("Profit", f"${profit:,.2f}")
 delta_roas = roas - 3.5
 k3.metric("ROAS (3.5X)", f"{roas:.2f}x", delta=f"+{delta_roas:.2f}" if roas > 0 else 0)
-k4.metric("Ventas", f"${ventas_cerradas:,.0f}"), f"AOV ${AOV}"
+
+# ESTA ES LA LÍNEA QUE ARREGLA EL TEXTO EXTRAÑO
+# Muestra Ventas como número entero, y el AOV en gris abajo sin flecha
+k4.metric("Ventas", f"{ventas_cerradas:,.0f}", delta=f"AOV ${AOV:,.2f}", delta_color="off")
+
 k5.metric("Inversión Ads", f"${inversion_ads:,.2f}")
 
 st.divider()
@@ -305,61 +302,38 @@ with tab1:
         ranking['% Cierre'] = (ranking['Ventas'] / ranking['Asistencias'] * 100).fillna(0)
         ranking = ranking.sort_values('Facturado', ascending=False)
         
-        # AQUÍ ESTÁ EL CAMBIO:
-        # Se agregaron 'Asistencias' y 'Ventas' con formato '{:.0f}'
         st.dataframe(
             ranking.style.format({
-                'Facturado': '${:,.2f}',    # Mantiene los 2 decimales de dinero
-                'Asistencias': '{:.0f}',    # 0 decimales (número entero)
-                'Ventas': '{:.0f}',         # 0 decimales (número entero)
-                '% Cierre': '{:.1f}%'       # 1 decimal para el porcentaje
+                'Facturado': '${:,.2f}',
+                'Asistencias': '{:.0f}',
+                'Ventas': '{:.0f}',
+                '% Cierre': '{:.1f}%'
             }), 
             use_container_width=True
         )
 
 with tab2:
-    # 1. Agrupar ventas por día
     v_dia = df_v_filtrado.groupby('Fecha')['Monto ($)'].sum().reset_index()
-
-    # 2. Crear gráfico base de LÍNEAS (cambio de px.bar a px.line)
     fig_fin = px.line(
-        v_dia, 
-        x='Fecha', 
-        y='Monto ($)', 
+        v_dia, x='Fecha', y='Monto ($)', 
         title="Dinámica Diaria: Ingresos vs Gasto",
-        markers=True  # Agrega puntos en cada fecha para mayor claridad
+        markers=True 
     )
-    
-    # Personalizar la línea de Ventas (Color Verde Corporativo)
     fig_fin.update_traces(line_color='#00CC96', name='Facturación', showlegend=True)
 
-    # 3. Agregar línea de Gasto Ads (si aplica)
     if closer_sel == "Todos" and not df_g_filtrado.empty:
         g_dia = df_g_filtrado.groupby('Fecha')['Gasto'].sum().reset_index()
         fig_fin.add_scatter(
-            x=g_dia['Fecha'], 
-            y=g_dia['Gasto'], 
-            mode='lines+markers', 
-            name='Gasto Ads', 
-            line=dict(color='#EF553B') # Color Rojo para gastos
+            x=g_dia['Fecha'], y=g_dia['Gasto'], 
+            mode='lines+markers', name='Gasto Ads', 
+            line=dict(color='#EF553B')
         )
 
-    # 4. HOVERMODE UNIFICADO y FORMATO LEGIBLE
-    # Esto hace que al pasar el mouse veas una sola etiqueta con ambos valores
     fig_fin.update_layout(
         hovermode="x unified",
-        legend=dict(orientation="h", y=1.1, x=0.5, xanchor="center"), # Leyenda arriba
-        yaxis_tickprefix="$" # Símbolo de dólar en el eje Y
+        legend=dict(orientation="h", y=1.1, x=0.5, xanchor="center"),
+        yaxis_tickprefix="$"
     )
-    
-    # Formato de los números en el tooltip (Ej: $1,250.00)
     fig_fin.update_traces(hovertemplate="$%{y:,.2f}") 
 
     st.plotly_chart(fig_fin, use_container_width=True)
-
-
-
-
-
-
-
