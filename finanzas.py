@@ -305,7 +305,7 @@ dia_actual = hoy.day
 progreso_mes = dia_actual / dias_mes
 proyeccion_cierre = (facturacion_total / dia_actual * dias_mes) if dia_actual > 0 else 0
 
-col_proy1, col_proy2 = st.columns(2)
+col_proy1 = st.columns(1)
 
 with col_proy1:
     st.markdown("#### 🎯 Pacing vs Meta")
@@ -314,6 +314,8 @@ with col_proy1:
     p1.metric("Meta", f"${meta_fact:,.2f}")
     p2.metric("Proyección Cierre", f"${proyeccion_cierre:,.2f}", delta=f"{proyeccion_cierre-meta_fact:,.2f}")
     p3.metric("Tiempo Transcurrido", f"{progreso_mes*100:.1f}%")
+
+col_proy2 = st.columns(1)
 
 with col_proy2:
     st.markdown("#### 📉 Dinámica Diaria: Ingreso, Costo y Utilidad")
