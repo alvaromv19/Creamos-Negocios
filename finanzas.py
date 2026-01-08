@@ -202,7 +202,7 @@ margen_neto_pct = (profit_neto / facturacion_total * 100) if facturacion_total >
 # --- 7. VISUALIZACIÓN DEL DASHBOARD ---
 
 # SECCIÓN 1: ESTADO FINANCIERO (BRUTO + BARRAS)
-st.markdown("### 💰 Estado Financiero (Flash Report)")
+st.markdown("### 💰 Estado Financiero (Reporte Neto)")
 
 if meta_fact > 0:
     progreso_fact = min(facturacion_total / meta_fact, 1.0)
@@ -306,9 +306,22 @@ dia_actual = hoy.day
 progreso_mes = dia_actual / dias_mes
 proyeccion_cierre = (facturacion_total / dia_actual * dias_mes) if dia_actual > 0 else 0
 
-# --- PARTE 1: PACING (Ahora ocupa todo el ancho) ---
-st.markdown("#### 🎯 Pacing vs Meta")
-st.progress(min(facturacion_total / meta_fact, 1.0) if meta_fact > 0 else 0)
+# --- CÁLCULO DEL PORCENTAJE PARA EL TEXTO ---
+if meta_fact > 0:
+    ratio_pacing = facturacion_total / meta_fact
+    pct_pacing = ratio_pacing * 100
+    barra_valor = min(ratio_pacing, 1.0) # La barra no acepta más de 1.0
+else:
+    pct_pacing = 0
+    barra_valor = 0
+
+# Emoji dinámico: Si vas mejor que el tiempo transcurrido = Fuego, si no = Tortuga
+emoji_status = "🔥" if ratio_pacing >= progreso_mes else "🐢"
+
+# --- PARTE 1: PACING CON TEXTO DINÁMICO ---
+# Aquí está el cambio: Agregamos el porcentaje al título
+st.markdown(f"#### 🎯 Pacing vs Meta: **{pct_pacing:.1f}%** {emoji_status}")
+st.progress(barra_valor)
 
 # Usamos columnas INTERNAS solo para las métricas pequeñas, para que queden alineadas
 p1, p2, p3 = st.columns(3) 
