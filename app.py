@@ -316,12 +316,41 @@ with tab1:
         )
 
 with tab2:
+    # 1. Agrupar ventas por día
     v_dia = df_v_filtrado.groupby('Fecha')['Monto ($)'].sum().reset_index()
-    fig_fin = px.bar(v_dia, x='Fecha', y='Monto ($)', title="Ingresos Diarios")
+
+    # 2. Crear gráfico base de LÍNEAS (cambio de px.bar a px.line)
+    fig_fin = px.line(
+        v_dia, 
+        x='Fecha', 
+        y='Monto ($)', 
+        title="Dinámica Diaria: Ingresos vs Gasto",
+        markers=True  # Agrega puntos en cada fecha para mayor claridad
+    )
+    
+    # Personalizar la línea de Ventas (Color Verde Corporativo)
+    fig_fin.update_traces(line_color='#00CC96', name='Facturación', showlegend=True)
+
+    # 3. Agregar línea de Gasto Ads (si aplica)
     if closer_sel == "Todos" and not df_g_filtrado.empty:
         g_dia = df_g_filtrado.groupby('Fecha')['Gasto'].sum().reset_index()
-        fig_fin.add_scatter(x=g_dia['Fecha'], y=g_dia['Gasto'], mode='lines+markers', name='Gasto Ads', line=dict(color='red'))
+        fig_fin.add_scatter(
+            x=g_dia['Fecha'], 
+            y=g_dia['Gasto'], 
+            mode='lines+markers', 
+            name='Gasto Ads', 
+            line=dict(color='#EF553B') # Color Rojo para gastos
+        )
+
+    # 4. HOVERMODE UNIFICADO y FORMATO LEGIBLE
+    # Esto hace que al pasar el mouse veas una sola etiqueta con ambos valores
+    fig_fin.update_layout(
+        hovermode="x unified",
+        legend=dict(orientation="h", y=1.1, x=0.5, xanchor="center"), # Leyenda arriba
+        yaxis_tickprefix="$" # Símbolo de dólar en el eje Y
+    )
+    
+    # Formato de los números en el tooltip (Ej: $1,250.00)
+    fig_fin.update_traces(hovertemplate="$%{y:,.2f}") 
+
     st.plotly_chart(fig_fin, use_container_width=True)
-
-
-
