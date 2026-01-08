@@ -252,7 +252,7 @@ u1, u2, u3, u4 = st.columns(4)
 u1.metric("Facturación", f"${facturacion_total:,.2f}")
 u2.metric("Gasto Total (Ads+Ops)", f"${costo_total:,.2f}", delta="Costo Estructural", delta_color="inverse")
 u3.metric("Utilidad Neta", f"${profit_neto:,.2f}", delta_color="normal" if profit_neto > 0 else "inverse")
-u4.metric("Ticket Promedio (AOV)", f"${aov:,.2f}", st.caption(conteo_ventas) ,help="Valor Promedio por Venta Cerrada")
+u4.metric("Ticket Promedio (AOV)", f"${aov:,.2f}", st.caption(f"ventas ({conteo_ventas:,.0f})"), help="Valor Promedio por Venta Cerrada")
 
 st.markdown("---")
 
