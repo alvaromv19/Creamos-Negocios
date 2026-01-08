@@ -232,7 +232,7 @@ with k3:
     st.caption(f"{progreso_ads*100:.1f}% del Budget (${presupuesto_ads:,.0f})")
 
 with k4:
-    st.metric("ROAS", f"{roas:.2f}x", delta="Objetivo > 2x") 
+    st.metric("ROAS", f"{roas:.2f}x", delta="Objetivo > 3.5x") 
 
 st.markdown("---")
 
