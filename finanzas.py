@@ -320,7 +320,7 @@ emoji_status = "🔥" if ratio_pacing >= progreso_mes else "🐢"
 
 # --- PARTE 1: PACING CON TEXTO DINÁMICO ---
 # Aquí está el cambio: Agregamos el porcentaje al título
-st.markdown(f"#### 🎯 Pacing vs Meta: **{pct_pacing:.1f}%** {emoji_status}")
+st.markdown(f"#### 🎯 Ritmo actual vs Meta: **{pct_pacing:.1f}%** {emoji_status}")
 st.progress(barra_valor)
 
 # Usamos columnas INTERNAS solo para las métricas pequeñas, para que queden alineadas
