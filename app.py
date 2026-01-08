@@ -246,8 +246,8 @@ k1, k2, k3, k4 = st.columns(4)
 k1.metric("Facturación", f"${facturacion:,.2f}")
 k2.metric("Profit", f"${profit:,.2f}", delta=profit)
 k3.metric("Inversión Ads", f"${inversion_ads:,.2f}")
-delta_roas = roas - 1
-k4.metric("ROAS", f"{roas:.2f}x", delta=f"{delta_roas:.2f} vs Objetivo" if roas > 0 else 0)
+delta_roas = roas - 3.5
+k4.metric("ROAS", f"{roas:.2f}x", delta=f"{delta_roas:.2f} vs Objetivo 3.5x" if roas > 0 else 0)
 
 st.divider()
 
@@ -354,3 +354,4 @@ with tab2:
     fig_fin.update_traces(hovertemplate="$%{y:,.2f}") 
 
     st.plotly_chart(fig_fin, use_container_width=True)
+
