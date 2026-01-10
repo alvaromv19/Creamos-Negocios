@@ -3,8 +3,6 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
-import os
-import json
 
 # --- 1. CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(page_title="Agency Command Center", page_icon="🦁", layout="wide")
@@ -47,71 +45,47 @@ def pantalla_bienvenida():
 if not pantalla_bienvenida():
     st.stop()
 
-# --- 3. GESTIÓN DE METAS (SESSION STATE) ---
+# --- 3. GESTIÓN DE METAS ---
 if "meta_facturacion" not in st.session_state:
     st.session_state["meta_facturacion"] = 30000.0 
 if "presupuesto_ads" not in st.session_state:
     st.session_state["presupuesto_ads"] = 5000.0
 
-# --- 4. CARGA DE DATOS (EL MOTOR) ---
+# --- 4. CARGA DE DATOS ---
 @st.cache_data(ttl=300)
 def cargar_datos():
-    # --- LINKS ACTUALIZADOS ---
-    # 1. Budget
+    # LINKS
     url_budget_dic = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQGOLgPTDLie5gEbkViCbpebWfN9S_eb2h2GGlpWLjmfVgzfnwR_ncVTs4IqmKgmAFfxZTQHJlMBrIi/pub?output=csv"
     url_budget_2026 = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTQKTt_taqoH2qNwWbs3t4doLsi0SuGavgdUNvpCKrqtlp5U9GaTqkTt9q-c1eWBnvPN88Qg5t0vXzK/pub?output=csv"
-    
-    # 2. Leads
     url_leads_todos = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTjCMjoi7DXiCeBRQdzAQZlx_L6SfpmbLlqmeRgZDHmCEdmN5_grVD_Yqa-5tzNprDS02o98ms80j1x/pub?gid=0&single=true&output=csv"
     url_leads_qual = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTjCMjoi7DXiCeBRQdzAQZlx_L6SfpmbLlqmeRgZDHmCEdmN5_grVD_Yqa-5tzNprDS02o98ms80j1x/pub?gid=1272057128&single=true&output=csv"
-    
-    # 3. Ventas
     url_ventas = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQuXaPCen61slzpr1TElxXoCROIxAgmgWT7pyWvel1dxq_Z_U1yZPrVrTbJfx9MwaL8_cluY3v2ywoB/pub?gid=0&single=true&output=csv"
 
-    # --- PROCESAMIENTO BUDGET ---
+    # --- BUDGET ---
     df_budget = pd.DataFrame()
     try:
-        # A. Diciembre (Formato Viejo)
+        # Diciembre
         b1 = pd.read_csv(url_budget_dic)
-        # Limpieza de nombres de columna
         b1.rename(columns=lambda x: x.strip(), inplace=True)
-        
-        if 'Fecha' in b1.columns:
-            b1['Fecha'] = pd.to_datetime(b1['Fecha'], dayfirst=True, errors='coerce')
+        if 'Fecha' in b1.columns: b1['Fecha'] = pd.to_datetime(b1['Fecha'], dayfirst=True, errors='coerce')
         if 'Gasto' in b1.columns:
             if b1['Gasto'].dtype == 'O': b1['Gasto'] = b1['Gasto'].astype(str).str.replace(r'[$,]', '', regex=True)
             b1['Gasto'] = pd.to_numeric(b1['Gasto'], errors='coerce').fillna(0)
-        
-        # Rellenar columnas faltantes en el viejo
-        b1['Clics'] = 0
-        b1['Visitas'] = 0
-        
-        # Seleccionar solo si existen
-        cols_b1 = [c for c in ['Fecha', 'Gasto', 'Clics', 'Visitas'] if c in b1.columns]
-        b1 = b1[cols_b1]
+        b1['Clics'] = 0; b1['Visitas'] = 0
+        b1 = b1[['Fecha', 'Gasto', 'Clics', 'Visitas']] if 'Fecha' in b1.columns else pd.DataFrame()
 
-        # B. 2026 (Formato Nuevo)
+        # 2026
         b2 = pd.read_csv(url_budget_2026)
-        # Mapeo de columnas del nuevo formato
         b2.rename(columns={'Day': 'Fecha', 'Amount spent': 'Gasto', 'Link clicks': 'Clics', 'Landing page views': 'Visitas'}, inplace=True)
         b2['Fecha'] = pd.to_datetime(b2['Fecha'], errors='coerce')
+        for col in ['Gasto', 'Clics', 'Visitas']:
+            if b2[col].dtype == 'O': b2[col] = b2[col].astype(str).str.replace(r'[$,]', '', regex=True)
+            b2[col] = pd.to_numeric(b2[col], errors='coerce').fillna(0)
         
-        if b2['Gasto'].dtype == 'O': b2['Gasto'] = b2['Gasto'].astype(str).str.replace(r'[$,]', '', regex=True)
-        b2['Gasto'] = pd.to_numeric(b2['Gasto'], errors='coerce').fillna(0)
-        
-        b2['Clics'] = pd.to_numeric(b2['Clics'], errors='coerce').fillna(0)
-        b2['Visitas'] = pd.to_numeric(b2['Visitas'], errors='coerce').fillna(0)
-        
-        # Unir ambos
-        df_budget = pd.concat([b1, b2], ignore_index=True).sort_values('Fecha')
-        
-        # Eliminar filas sin fecha (vacías)
-        df_budget.dropna(subset=['Fecha'], inplace=True)
-        
-    except Exception as e:
-        st.error(f"Error cargando Budget: {e}")
+        df_budget = pd.concat([b1, b2], ignore_index=True).sort_values('Fecha').dropna(subset=['Fecha'])
+    except Exception as e: st.error(f"Error Budget: {e}")
 
-    # --- PROCESAMIENTO LEADS ---
+    # --- LEADS ---
     df_leads_all = pd.DataFrame()
     df_leads_qual = pd.DataFrame()
     try:
@@ -119,30 +93,29 @@ def cargar_datos():
         l1 = pd.read_csv(url_leads_todos)
         l1.rename(columns={'Fecha Creación': 'Fecha'}, inplace=True)
         l1['Fecha'] = pd.to_datetime(l1['Fecha'], errors='coerce')
-        l1.dropna(subset=['Fecha'], inplace=True) # Clave para evitar el error
-        df_leads_all = l1
+        df_leads_all = l1.dropna(subset=['Fecha'])
         
         # Calificados
         l2 = pd.read_csv(url_leads_qual)
         l2.rename(columns={'Fecha Creación': 'Fecha'}, inplace=True)
         l2['Fecha'] = pd.to_datetime(l2['Fecha'], errors='coerce')
-        l2.dropna(subset=['Fecha'], inplace=True)
-        df_leads_qual = l2
-    except Exception as e:
-        st.error(f"Error cargando Leads: {e}")
+        df_leads_qual = l2.dropna(subset=['Fecha'])
+    except Exception as e: st.error(f"Error Leads: {e}")
 
-    # --- PROCESAMIENTO VENTAS ---
+    # --- VENTAS ---
     df_ventas = pd.DataFrame()
     try:
         v = pd.read_csv(url_ventas)
         v['Fecha'] = pd.to_datetime(v['Fecha'], dayfirst=True, errors='coerce')
-        v.dropna(subset=['Fecha'], inplace=True) # Evita error con filas vacías
+        v.dropna(subset=['Fecha'], inplace=True)
         
-        if v['Monto ($)'].dtype == 'O': 
-            v['Monto ($)'] = v['Monto ($)'].astype(str).str.replace(r'[$,]', '', regex=True)
+        if v['Monto ($)'].dtype == 'O': v['Monto ($)'] = v['Monto ($)'].astype(str).str.replace(r'[$,]', '', regex=True)
         v['Monto ($)'] = pd.to_numeric(v['Monto ($)'], errors='coerce').fillna(0)
         
-        v['Closer'] = v['Closer'].fillna("Sin Asignar")
+        # 1. NORMALIZACIÓN DE CLOSERS (Corrección de duplicados)
+        v['Closer'] = v['Closer'].astype(str).fillna("Sin Asignar")
+        v['Closer'] = v['Closer'].str.strip().str.title() # " juan " -> "Juan"
+
         v['Resultado'] = v['Resultado'].fillna("Pendiente")
         
         def clasificar(res):
@@ -162,34 +135,25 @@ def cargar_datos():
         v['Asistio'] = v['Resultado'].apply(check_asistencia)
         
         df_ventas = v
-    except Exception as e:
-        st.error(f"Error cargando Ventas: {e}")
+    except Exception as e: st.error(f"Error Ventas: {e}")
 
     return df_budget, df_leads_all, df_leads_qual, df_ventas
 
-# Cargar datos
 df_budget, df_leads_all, df_leads_qual, df_ventas = cargar_datos()
 
 if df_ventas.empty and df_budget.empty:
-    st.warning("⚠️ No hay datos disponibles.")
+    st.warning("⚠️ No hay datos.")
     st.stop()
 
-
-# --- 5. SIDEBAR (FILTROS Y METAS) ---
+# --- 5. SIDEBAR ---
 st.sidebar.title("🎛️ Control Panel")
-
 if st.sidebar.button("🔄 ACTUALIZAR DATOS", type="primary"):
     st.cache_data.clear()
     st.rerun()
 
 st.sidebar.markdown("---")
 
-# Filtro Fechas
-filtro_tiempo = st.sidebar.selectbox(
-    "📅 Período de Tiempo",
-    ["Este Mes", "Mes Anterior", "Hoy", "Ayer", "Esta Semana", "Últimos 7 días", "Últimos 30 días", "Personalizado"]
-)
-
+filtro_tiempo = st.sidebar.selectbox("📅 Período", ["Este Mes", "Mes Anterior", "Hoy", "Ayer", "Esta Semana", "Últimos 7 días", "Últimos 30 días", "Personalizado"])
 hoy = pd.to_datetime("today").date()
 
 if filtro_tiempo == "Hoy": f_ini, f_fin = hoy, hoy
@@ -207,21 +171,15 @@ else:
     f_ini = c1.date_input("Inicio", hoy)
     f_fin = c2.date_input("Fin", hoy)
 
-# Filtro Closer
 closers = ["Todos"] + sorted(list(df_ventas['Closer'].unique())) if not df_ventas.empty else ["Todos"]
 closer_sel = st.sidebar.selectbox("👤 Closer", closers)
 
-st.sidebar.info(f"Visualizando: {f_ini} al {f_fin}")
+st.sidebar.info(f"{f_ini} al {f_fin}")
 
-# --- APLICAR FILTROS (SOLUCIÓN ERROR FECHAS) ---
 def filtrar_fecha(df):
     if df.empty: return df
-    # Convertimos los inputs de fecha (date) a Timestamp para poder comparar con datetime64
     ts_ini = pd.Timestamp(f_ini)
     ts_fin = pd.Timestamp(f_fin)
-    
-    # .dt.normalize() pone la hora en 00:00:00 para comparar solo fechas puros
-    # Esto evita el error de tipos incompatibles y maneja NaT automáticamente (False)
     mask = (df['Fecha'].dt.normalize() >= ts_ini) & (df['Fecha'].dt.normalize() <= ts_fin)
     return df.loc[mask]
 
@@ -233,7 +191,7 @@ df_v_f = filtrar_fecha(df_ventas)
 if closer_sel != "Todos" and not df_v_f.empty:
     df_v_f = df_v_f[df_v_f['Closer'] == closer_sel]
 
-# --- 6. CÁLCULOS MAESTROS ---
+# --- 6. KPI ENGINE ---
 facturacion = df_v_f['Monto ($)'].sum()
 gasto_ads = df_b_f['Gasto'].sum() if closer_sel == "Todos" else 0 
 profit = facturacion - gasto_ads
@@ -242,12 +200,11 @@ roas = facturacion / gasto_ads if gasto_ads > 0 else 0
 clics = df_b_f['Clics'].sum() if closer_sel == "Todos" else 0
 visitas = df_b_f['Visitas'].sum() if closer_sel == "Todos" else 0
 leads_total = len(df_la_f)
-leads_qual = len(df_lq_f)
+leads_qual = len(df_lq_f) # Aquí usa directamente el largo del DF filtrado de calificados
 agendas = len(df_v_f) 
 shows = df_v_f['Asistio'].sum()
 ventas = len(df_v_f[df_v_f['Estado_Simple'] == "✅ Venta"])
 
-# Metas Sidebar
 st.sidebar.markdown("---")
 with st.sidebar.expander("🎯 Ajustar Metas"):
     m_fact = st.number_input("Meta Facturación", value=st.session_state["meta_facturacion"], step=1000.0)
@@ -259,73 +216,65 @@ with st.sidebar.expander("🎯 Ajustar Metas"):
 
 # --- 7. HEADER ---
 st.title(f"🚀 Dashboard: {f_ini} - {f_fin}")
-
 h1, h2, h3, h4 = st.columns(4)
 h1.metric("💰 Facturación", f"${facturacion:,.0f}", delta=f"{(facturacion/m_fact)*100:.1f}% Meta")
 h2.metric("💸 Ad Spend", f"${gasto_ads:,.0f}", delta=f"Restante: ${m_ads-gasto_ads:,.0f}", delta_color="inverse")
 h3.metric("💎 Profit", f"${profit:,.0f}", delta_color="normal")
 h4.metric("🔥 ROAS", f"{roas:.2f}x", delta=f"{roas-3:.1f} vs KPI" if roas>0 else 0)
-
 st.divider()
 
 # --- 8. PESTAÑAS ---
-tab1, tab2, tab3, tab4, tab5 = st.tabs([
-    "👔 Visión CEO", 
-    "🌪️ Embudo y Tráfico", 
-    "📞 Performance Closer", 
-    "📢 Campañas",
-    "🧮 Matemática Éxito"
-])
+tab1, tab2, tab3, tab4, tab5 = st.tabs(["👔 Visión CEO", "🌪️ Embudo y Tráfico", "📞 Performance Closer", "📢 Campañas", "🧮 Matemática Éxito"])
 
 # === TAB 1: VISIÓN CEO ===
 with tab1:
     st.subheader("📊 Resumen Ejecutivo")
-    
     c_proj1, c_proj2, c_proj3 = st.columns(3)
-    dias_mes = 30 
-    dia_actual = datetime.now().day
-    dias_restantes_mes = 30 - dia_actual if dia_actual < 30 else 0
-    
+    dias_restantes_mes = 30 - datetime.now().day if datetime.now().day < 30 else 0
     with c_proj1:
         st.write(f"**Progreso Meta (${m_fact:,.0f})**")
-        prog = min(facturacion / m_fact, 1.0)
-        st.progress(prog)
-        st.caption(f"{prog*100:.1f}% Completado")
-        
+        st.progress(min(facturacion / m_fact, 1.0))
+        st.caption(f"{(facturacion / m_fact)*100:.1f}% Completado")
     with c_proj2:
-        falta = max(m_fact - facturacion, 0)
-        st.metric("Falta para Meta", f"${falta:,.0f}")
+        st.metric("Falta para Meta", f"${max(m_fact - facturacion, 0):,.0f}")
         run_rate = (facturacion / len(pd.date_range(f_ini, f_fin))) * 30 if len(pd.date_range(f_ini, f_fin)) > 0 else 0
         st.caption(f"Proyección Cierre: ${run_rate:,.0f}")
-
     with c_proj3:
-        dias_rango = (f_fin - f_ini).days + 1
-        inv_diaria = gasto_ads / dias_rango if dias_rango > 0 else 0
+        inv_diaria = gasto_ads / ((f_fin - f_ini).days + 1) if ((f_fin - f_ini).days + 1) > 0 else 0
         sugerida = (m_ads - gasto_ads) / dias_restantes_mes if dias_restantes_mes > 0 else 0
-        st.metric("Inversión Diaria Actual", f"${inv_diaria:.0f}")
+        st.metric("Inversión Diaria", f"${inv_diaria:.0f}")
         st.caption(f"Sugerida: ${sugerida:.0f}/día")
 
     st.markdown("---")
-    
     k1, k2, k3, k4 = st.columns(4)
-    conv_glob = (ventas / leads_total * 100) if leads_total > 0 else 0
-    show_rate = (shows / agendas * 100) if agendas > 0 else 0
-    close_rate = (ventas / shows * 100) if shows > 0 else 0
-    calif_rate = (leads_qual / leads_total * 100) if leads_total > 0 else 0
-    
-    k1.metric("Conv. Global", f"{conv_glob:.2f}%")
-    k2.metric("Show Rate", f"{show_rate:.1f}%")
-    k3.metric("Close Rate", f"{close_rate:.1f}%")
-    k4.metric("Calidad Leads", f"{calif_rate:.1f}%")
+    k1.metric("Conv. Global", f"{(ventas / leads_total * 100) if leads_total > 0 else 0:.2f}%")
+    k2.metric("Show Rate", f"{(shows / agendas * 100) if agendas > 0 else 0:.1f}%")
+    k3.metric("Close Rate", f"{(ventas / shows * 100) if shows > 0 else 0:.1f}%")
+    k4.metric("Calidad Leads", f"{(leads_qual / leads_total * 100) if leads_total > 0 else 0:.1f}%")
 
     st.markdown("### 📈 Actividad Diaria")
-    if not df_v_f.empty:
-        daily = df_v_f.groupby('Fecha').agg({'Monto ($)': 'sum', 'Estado_Simple': 'count'}).rename(columns={'Estado_Simple': 'Ventas #'})
-        if not df_la_f.empty:
-            d_leads = df_la_f.groupby('Fecha').size().to_frame('Leads')
-            daily = daily.join(d_leads, how='outer').fillna(0)
+    if not df_v_f.empty or not df_la_f.empty:
+        # Preparamos dataframe diario combinado
+        daily = pd.DataFrame(index=pd.date_range(f_ini, f_fin))
+        daily.index.name = 'Fecha'
         
-        fig_ecg = px.line(daily, y=['Monto ($)', 'Leads'] if 'Leads' in daily.columns else ['Monto ($)'], title="Facturación vs Leads", markers=True)
+        # Agregamos métricas
+        d_ventas = df_v_f.groupby('Fecha')['Monto ($)'].sum()
+        d_count_ventas = df_v_f[df_v_f['Estado_Simple']=="✅ Venta"].groupby('Fecha').size()
+        d_leads = df_la_f.groupby('Fecha').size()
+        d_qual = df_lq_f.groupby('Fecha').size() if not df_lq_f.empty else pd.Series()
+        
+        daily['Facturación'] = d_ventas
+        daily['Ventas (#)'] = d_count_ventas
+        daily['Leads'] = d_leads
+        daily['Calificados'] = d_qual
+        daily = daily.fillna(0).reset_index()
+
+        # Gráfico con HOVER UNIFIED (X-Ray Vision)
+        fig_ecg = px.line(daily, x='Fecha', y=['Facturación', 'Leads'], 
+                          title="Evolución Diaria (Pasa el mouse)", markers=True,
+                          hover_data=['Ventas (#)', 'Calificados']) # Datos extra en el tooltip
+        fig_ecg.update_layout(hovermode="x unified") # CLAVE: Activa el modo X-Ray
         st.plotly_chart(fig_ecg, use_container_width=True)
 
 # === TAB 2: EMBUDO Y TRÁFICO ===
@@ -334,41 +283,34 @@ with tab2:
     col_fun, col_stats = st.columns([2, 1])
     
     with col_fun:
-        funnel_data = dict(
-            number=[clics, visitas, leads_total, leads_qual, agendas, ventas],
-            stage=["Clics", "Visitas", "Leads Totales", "Calificados", "Agendas", "Ventas"]
-        )
-        fig_fun = go.Figure(go.Funnel(
-            y = funnel_data['stage'],
-            x = funnel_data['number'],
-            textinfo = "value+percent previous",
-            marker = {"color": ["#2A2D34", "#0096C7", "#48CAE4", "#90E0EF", "#ADE8F4", "#00CC96"]}
-        ))
-        fig_fun.update_layout(margin=dict(t=0, b=0, l=0, r=0), height=400, plot_bgcolor='rgba(0,0,0,0)')
+        # 4. EMBUDO HORIZONTAL (Izquierda a Derecha)
+        funnel_data = pd.DataFrame({
+            "Etapa": ["Clics", "Visitas", "Leads Totales", "Calificados", "Agendas", "Ventas"],
+            "Cantidad": [clics, visitas, leads_total, leads_qual, agendas, ventas],
+            "Color": ["#2A2D34", "#0096C7", "#48CAE4", "#90E0EF", "#ADE8F4", "#00CC96"]
+        })
+        # Usamos Bar con orientación 'h' para simular embudo izquierda-derecha
+        fig_fun = px.bar(funnel_data, x="Cantidad", y="Etapa", orientation='h', text="Cantidad",
+                         title="Conversión de Tráfico", color="Etapa", 
+                         color_discrete_sequence=funnel_data["Color"].tolist())
+        # Invertimos eje Y para que Clics quede arriba
+        fig_fun.update_yaxes(autorange="reversed") 
+        fig_fun.update_layout(showlegend=False, height=400)
         st.plotly_chart(fig_fun, use_container_width=True)
         
     with col_stats:
         st.markdown("#### 📉 Costos Unitarios")
-        cpl = gasto_ads / leads_total if leads_total > 0 else 0
-        cpql = gasto_ads / leads_qual if leads_qual > 0 else 0
-        cpa = gasto_ads / ventas if ventas > 0 else 0
-        st.metric("CPL", f"${cpl:.2f}")
-        st.metric("CPQL", f"${cpql:.2f}")
-        st.metric("CPA", f"${cpa:.2f}")
+        st.metric("CPL", f"${(gasto_ads / leads_total) if leads_total > 0 else 0:.2f}")
+        st.metric("CPQL", f"${(gasto_ads / leads_qual) if leads_qual > 0 else 0:.2f}")
+        st.metric("CPA", f"${(gasto_ads / ventas) if ventas > 0 else 0:.2f}")
 
     st.divider()
     st.subheader("📊 Tendencia: Calidad de Leads")
-    if not df_la_f.empty:
-        trend_leads = df_la_f.groupby('Fecha').size().reset_index(name='Leads Totales')
-        trend_qual = df_lq_f.groupby('Fecha').size().reset_index(name='Calificados') if not df_lq_f.empty else pd.DataFrame()
-        
-        if not trend_qual.empty:
-            trend_merged = pd.merge(trend_leads, trend_qual, on='Fecha', how='left').fillna(0)
-        else:
-            trend_merged = trend_leads
-            trend_merged['Calificados'] = 0
-            
-        fig_trend = px.line(trend_merged, x='Fecha', y=['Leads Totales', 'Calificados'], markers=True)
+    # Reusamos el dataframe 'daily' que ya creamos en Tab 1 para consistencia
+    if 'daily' in locals():
+        fig_trend = px.line(daily, x='Fecha', y=['Leads', 'Calificados'], markers=True, 
+                            title="Volumen vs Calidad", color_discrete_map={'Leads': 'cyan', 'Calificados': '#00CC96'})
+        fig_trend.update_layout(hovermode="x unified") # X-Ray activado
         st.plotly_chart(fig_trend, use_container_width=True)
 
 # === TAB 3: PERFORMANCE CLOSER ===
@@ -401,12 +343,9 @@ with tab4:
     st.subheader("📢 Rendimiento por Origen")
     if not df_v_f.empty:
         c1, c2 = st.columns([2, 1])
-        # Buscamos la columna correcta, a veces es Origen Campaña o Fuente
         col_campana = 'Origen Campaña' if 'Origen Campaña' in df_v_f.columns else 'Fuente'
-        
         perf_camp = df_v_f.groupby(col_campana).agg({'Monto ($)': 'sum', 'Estado_Simple': lambda x: (x=="✅ Venta").sum()}).rename(columns={'Monto ($)': 'Ingresos', 'Estado_Simple': 'Ventas'}).reset_index()
         perf_camp = perf_camp.sort_values('Ingresos', ascending=False)
-        
         with c1:
             fig_bar = px.bar(perf_camp, x="Ingresos", y=col_campana, orientation='h', text_auto='.2s', title="Top Campañas")
             st.plotly_chart(fig_bar, use_container_width=True)
