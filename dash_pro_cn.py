@@ -57,14 +57,19 @@ def cargar_datos():
     # LINKS
     url_budget_dic = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQGOLgPTDLie5gEbkViCbpebWfN9S_eb2h2GGlpWLjmfVgzfnwR_ncVTs4IqmKgmAFfxZTQHJlMBrIi/pub?output=csv"
     url_budget_2026 = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTQKTt_taqoH2qNwWbs3t4doLsi0SuGavgdUNvpCKrqtlp5U9GaTqkTt9q-c1eWBnvPN88Qg5t0vXzK/pub?output=csv"
+    
+    # URL Leads Totales (La que enviaste para corregir)
     url_leads_todos = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTjCMjoi7DXiCeBRQdzAQZlx_L6SfpmbLlqmeRgZDHmCEdmN5_grVD_Yqa-5tzNprDS02o98ms80j1x/pub?gid=0&single=true&output=csv"
-    # Link Actualizado Leads Calificados
+    
+    # URL Leads Calificados
     url_leads_qual = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTjCMjoi7DXiCeBRQdzAQZlx_L6SfpmbLlqmeRgZDHmCEdmN5_grVD_Yqa-5tzNprDS02o98ms80j1x/pub?gid=1272057128&single=true&output=csv"
+    
     url_ventas = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQuXaPCen61slzpr1TElxXoCROIxAgmgWT7pyWvel1dxq_Z_U1yZPrVrTbJfx9MwaL8_cluY3v2ywoB/pub?gid=0&single=true&output=csv"
 
     # --- BUDGET ---
     df_budget = pd.DataFrame()
     try:
+        # Diciembre
         b1 = pd.read_csv(url_budget_dic)
         b1.rename(columns=lambda x: x.strip(), inplace=True)
         if 'Fecha' in b1.columns: b1['Fecha'] = pd.to_datetime(b1['Fecha'], dayfirst=True, errors='coerce')
@@ -74,6 +79,7 @@ def cargar_datos():
         b1['Clics'] = 0; b1['Visitas'] = 0
         b1 = b1[['Fecha', 'Gasto', 'Clics', 'Visitas']] if 'Fecha' in b1.columns else pd.DataFrame()
 
+        # 2026
         b2 = pd.read_csv(url_budget_2026)
         b2.rename(columns={'Day': 'Fecha', 'Amount spent': 'Gasto', 'Link clicks': 'Clics', 'Landing page views': 'Visitas'}, inplace=True)
         b2['Fecha'] = pd.to_datetime(b2['Fecha'], errors='coerce')
@@ -84,19 +90,21 @@ def cargar_datos():
         df_budget = pd.concat([b1, b2], ignore_index=True).sort_values('Fecha').dropna(subset=['Fecha'])
     except Exception as e: st.error(f"Error Budget: {e}")
 
-    # --- LEADS (SOLUCIÓN ROBUSTA) ---
+    # --- LEADS (CORRECCIÓN TOTALES) ---
     df_leads_all = pd.DataFrame()
     df_leads_qual = pd.DataFrame()
     try:
-        # 1. TODOS LOS LEADS (Limpieza profunda)
+        # 1. TODOS LOS LEADS (Corrección Robusta)
         l1 = pd.read_csv(url_leads_todos)
         l1.rename(columns={'Fecha Creación': 'Fecha'}, inplace=True)
         
-        # Limpiar espacios en blanco que confunden a pandas
         if 'Fecha' in l1.columns:
+            # Limpieza agresiva de la columna Fecha antes de convertir
             l1['Fecha'] = l1['Fecha'].astype(str).str.strip()
-            # dayfirst=True es clave para DD/MM/YYYY
+            # dayfirst=True es critico si tu sheet es DD/MM/YYYY
             l1['Fecha'] = pd.to_datetime(l1['Fecha'], dayfirst=True, errors='coerce')
+            
+            # Solo eliminamos filas donde la fecha sea realmente irrecuperable (NaT)
             df_leads_all = l1.dropna(subset=['Fecha'])
         
         # 2. LEADS CALIFICADOS
