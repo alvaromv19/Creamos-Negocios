@@ -58,14 +58,13 @@ def cargar_datos():
     url_budget_dic = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQGOLgPTDLie5gEbkViCbpebWfN9S_eb2h2GGlpWLjmfVgzfnwR_ncVTs4IqmKgmAFfxZTQHJlMBrIi/pub?output=csv"
     url_budget_2026 = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTQKTt_taqoH2qNwWbs3t4doLsi0SuGavgdUNvpCKrqtlp5U9GaTqkTt9q-c1eWBnvPN88Qg5t0vXzK/pub?output=csv"
     url_leads_todos = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTjCMjoi7DXiCeBRQdzAQZlx_L6SfpmbLlqmeRgZDHmCEdmN5_grVD_Yqa-5tzNprDS02o98ms80j1x/pub?gid=0&single=true&output=csv"
-    # Link Específico Leads Calificados
+    # Link Actualizado Leads Calificados
     url_leads_qual = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTjCMjoi7DXiCeBRQdzAQZlx_L6SfpmbLlqmeRgZDHmCEdmN5_grVD_Yqa-5tzNprDS02o98ms80j1x/pub?gid=1272057128&single=true&output=csv"
     url_ventas = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQuXaPCen61slzpr1TElxXoCROIxAgmgWT7pyWvel1dxq_Z_U1yZPrVrTbJfx9MwaL8_cluY3v2ywoB/pub?gid=0&single=true&output=csv"
 
     # --- BUDGET ---
     df_budget = pd.DataFrame()
     try:
-        # Diciembre
         b1 = pd.read_csv(url_budget_dic)
         b1.rename(columns=lambda x: x.strip(), inplace=True)
         if 'Fecha' in b1.columns: b1['Fecha'] = pd.to_datetime(b1['Fecha'], dayfirst=True, errors='coerce')
@@ -75,7 +74,6 @@ def cargar_datos():
         b1['Clics'] = 0; b1['Visitas'] = 0
         b1 = b1[['Fecha', 'Gasto', 'Clics', 'Visitas']] if 'Fecha' in b1.columns else pd.DataFrame()
 
-        # 2026
         b2 = pd.read_csv(url_budget_2026)
         b2.rename(columns={'Day': 'Fecha', 'Amount spent': 'Gasto', 'Link clicks': 'Clics', 'Landing page views': 'Visitas'}, inplace=True)
         b2['Fecha'] = pd.to_datetime(b2['Fecha'], errors='coerce')
@@ -86,23 +84,29 @@ def cargar_datos():
         df_budget = pd.concat([b1, b2], ignore_index=True).sort_values('Fecha').dropna(subset=['Fecha'])
     except Exception as e: st.error(f"Error Budget: {e}")
 
-    # --- LEADS (AQUÍ ESTÁ LA CORRECCIÓN) ---
+    # --- LEADS (SOLUCIÓN ROBUSTA) ---
     df_leads_all = pd.DataFrame()
     df_leads_qual = pd.DataFrame()
     try:
-        # Todos
+        # 1. TODOS LOS LEADS (Limpieza profunda)
         l1 = pd.read_csv(url_leads_todos)
         l1.rename(columns={'Fecha Creación': 'Fecha'}, inplace=True)
-        # CORRECCIÓN: Agregado dayfirst=True para que 10/01 sea 10 de Enero
-        l1['Fecha'] = pd.to_datetime(l1['Fecha'], dayfirst=True, errors='coerce')
-        df_leads_all = l1.dropna(subset=['Fecha'])
         
-        # Calificados
+        # Limpiar espacios en blanco que confunden a pandas
+        if 'Fecha' in l1.columns:
+            l1['Fecha'] = l1['Fecha'].astype(str).str.strip()
+            # dayfirst=True es clave para DD/MM/YYYY
+            l1['Fecha'] = pd.to_datetime(l1['Fecha'], dayfirst=True, errors='coerce')
+            df_leads_all = l1.dropna(subset=['Fecha'])
+        
+        # 2. LEADS CALIFICADOS
         l2 = pd.read_csv(url_leads_qual)
         l2.rename(columns={'Fecha Creación': 'Fecha'}, inplace=True)
-        # CORRECCIÓN: Agregado dayfirst=True vital para este archivo
-        l2['Fecha'] = pd.to_datetime(l2['Fecha'], dayfirst=True, errors='coerce')
-        df_leads_qual = l2.dropna(subset=['Fecha'])
+        if 'Fecha' in l2.columns:
+            l2['Fecha'] = l2['Fecha'].astype(str).str.strip()
+            l2['Fecha'] = pd.to_datetime(l2['Fecha'], dayfirst=True, errors='coerce')
+            df_leads_qual = l2.dropna(subset=['Fecha'])
+            
     except Exception as e: st.error(f"Error Leads: {e}")
 
     # --- VENTAS ---
@@ -115,7 +119,6 @@ def cargar_datos():
         if v['Monto ($)'].dtype == 'O': v['Monto ($)'] = v['Monto ($)'].astype(str).str.replace(r'[$,]', '', regex=True)
         v['Monto ($)'] = pd.to_numeric(v['Monto ($)'], errors='coerce').fillna(0)
         
-        # Normalización Closers
         v['Closer'] = v['Closer'].astype(str).fillna("Sin Asignar")
         v['Closer'] = v['Closer'].str.strip().str.title()
 
@@ -257,11 +260,9 @@ with tab1:
 
     st.markdown("### 📈 Actividad Diaria")
     if not df_v_f.empty or not df_la_f.empty:
-        # Preparamos dataframe diario combinado
         daily = pd.DataFrame(index=pd.date_range(f_ini, f_fin))
         daily.index.name = 'Fecha'
         
-        # Agregamos métricas
         d_ventas = df_v_f.groupby('Fecha')['Monto ($)'].sum()
         d_count_ventas = df_v_f[df_v_f['Estado_Simple']=="✅ Venta"].groupby('Fecha').size()
         d_leads = df_la_f.groupby('Fecha').size()
@@ -273,11 +274,10 @@ with tab1:
         daily['Calificados'] = d_qual
         daily = daily.fillna(0).reset_index()
 
-        # Gráfico con HOVER UNIFIED (X-Ray Vision)
         fig_ecg = px.line(daily, x='Fecha', y=['Facturación', 'Leads'], 
                           title="Evolución Diaria (Pasa el mouse)", markers=True,
-                          hover_data=['Ventas (#)', 'Calificados']) # Datos extra en el tooltip
-        fig_ecg.update_layout(hovermode="x unified") # CLAVE: Activa el modo X-Ray
+                          hover_data=['Ventas (#)', 'Calificados']) 
+        fig_ecg.update_layout(hovermode="x unified") 
         st.plotly_chart(fig_ecg, use_container_width=True)
 
 # === TAB 2: EMBUDO Y TRÁFICO ===
@@ -286,17 +286,14 @@ with tab2:
     col_fun, col_stats = st.columns([2, 1])
     
     with col_fun:
-        # 4. EMBUDO HORIZONTAL (Izquierda a Derecha)
         funnel_data = pd.DataFrame({
             "Etapa": ["Clics", "Visitas", "Leads Totales", "Calificados", "Agendas", "Ventas"],
             "Cantidad": [clics, visitas, leads_total, leads_qual, agendas, ventas],
             "Color": ["#2A2D34", "#0096C7", "#48CAE4", "#90E0EF", "#ADE8F4", "#00CC96"]
         })
-        # Usamos Bar con orientación 'h' para simular embudo izquierda-derecha
         fig_fun = px.bar(funnel_data, x="Cantidad", y="Etapa", orientation='h', text="Cantidad",
                          title="Conversión de Tráfico", color="Etapa", 
                          color_discrete_sequence=funnel_data["Color"].tolist())
-        # Invertimos eje Y para que Clics quede arriba
         fig_fun.update_yaxes(autorange="reversed") 
         fig_fun.update_layout(showlegend=False, height=400)
         st.plotly_chart(fig_fun, use_container_width=True)
@@ -309,11 +306,11 @@ with tab2:
 
     st.divider()
     st.subheader("📊 Tendencia: Calidad de Leads")
-    # Reusamos el dataframe 'daily' que ya creamos en Tab 1 para consistencia
     if 'daily' in locals():
         fig_trend = px.line(daily, x='Fecha', y=['Leads', 'Calificados'], markers=True, 
-                            title="Volumen vs Calidad", color_discrete_map={'Leads': 'cyan', 'Calificados': '#00CC96'})
-        fig_trend.update_layout(hovermode="x unified") # X-Ray activado
+                            title="Volumen vs Calidad", color_discrete_map={'Leads': 'cyan', 'Calificados': '#00CC96'},
+                            hover_data=['Ventas (#)']) 
+        fig_trend.update_layout(hovermode="x unified") 
         st.plotly_chart(fig_trend, use_container_width=True)
 
 # === TAB 3: PERFORMANCE CLOSER ===
