@@ -58,6 +58,7 @@ def cargar_datos():
     url_budget_dic = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQGOLgPTDLie5gEbkViCbpebWfN9S_eb2h2GGlpWLjmfVgzfnwR_ncVTs4IqmKgmAFfxZTQHJlMBrIi/pub?output=csv"
     url_budget_2026 = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTQKTt_taqoH2qNwWbs3t4doLsi0SuGavgdUNvpCKrqtlp5U9GaTqkTt9q-c1eWBnvPN88Qg5t0vXzK/pub?output=csv"
     url_leads_todos = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTjCMjoi7DXiCeBRQdzAQZlx_L6SfpmbLlqmeRgZDHmCEdmN5_grVD_Yqa-5tzNprDS02o98ms80j1x/pub?gid=0&single=true&output=csv"
+    # Link Específico Leads Calificados
     url_leads_qual = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTjCMjoi7DXiCeBRQdzAQZlx_L6SfpmbLlqmeRgZDHmCEdmN5_grVD_Yqa-5tzNprDS02o98ms80j1x/pub?gid=1272057128&single=true&output=csv"
     url_ventas = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQuXaPCen61slzpr1TElxXoCROIxAgmgWT7pyWvel1dxq_Z_U1yZPrVrTbJfx9MwaL8_cluY3v2ywoB/pub?gid=0&single=true&output=csv"
 
@@ -85,20 +86,22 @@ def cargar_datos():
         df_budget = pd.concat([b1, b2], ignore_index=True).sort_values('Fecha').dropna(subset=['Fecha'])
     except Exception as e: st.error(f"Error Budget: {e}")
 
-    # --- LEADS ---
+    # --- LEADS (AQUÍ ESTÁ LA CORRECCIÓN) ---
     df_leads_all = pd.DataFrame()
     df_leads_qual = pd.DataFrame()
     try:
         # Todos
         l1 = pd.read_csv(url_leads_todos)
         l1.rename(columns={'Fecha Creación': 'Fecha'}, inplace=True)
-        l1['Fecha'] = pd.to_datetime(l1['Fecha'], errors='coerce')
+        # CORRECCIÓN: Agregado dayfirst=True para que 10/01 sea 10 de Enero
+        l1['Fecha'] = pd.to_datetime(l1['Fecha'], dayfirst=True, errors='coerce')
         df_leads_all = l1.dropna(subset=['Fecha'])
         
         # Calificados
         l2 = pd.read_csv(url_leads_qual)
         l2.rename(columns={'Fecha Creación': 'Fecha'}, inplace=True)
-        l2['Fecha'] = pd.to_datetime(l2['Fecha'], errors='coerce')
+        # CORRECCIÓN: Agregado dayfirst=True vital para este archivo
+        l2['Fecha'] = pd.to_datetime(l2['Fecha'], dayfirst=True, errors='coerce')
         df_leads_qual = l2.dropna(subset=['Fecha'])
     except Exception as e: st.error(f"Error Leads: {e}")
 
@@ -112,9 +115,9 @@ def cargar_datos():
         if v['Monto ($)'].dtype == 'O': v['Monto ($)'] = v['Monto ($)'].astype(str).str.replace(r'[$,]', '', regex=True)
         v['Monto ($)'] = pd.to_numeric(v['Monto ($)'], errors='coerce').fillna(0)
         
-        # 1. NORMALIZACIÓN DE CLOSERS (Corrección de duplicados)
+        # Normalización Closers
         v['Closer'] = v['Closer'].astype(str).fillna("Sin Asignar")
-        v['Closer'] = v['Closer'].str.strip().str.title() # " juan " -> "Juan"
+        v['Closer'] = v['Closer'].str.strip().str.title()
 
         v['Resultado'] = v['Resultado'].fillna("Pendiente")
         
@@ -200,7 +203,7 @@ roas = facturacion / gasto_ads if gasto_ads > 0 else 0
 clics = df_b_f['Clics'].sum() if closer_sel == "Todos" else 0
 visitas = df_b_f['Visitas'].sum() if closer_sel == "Todos" else 0
 leads_total = len(df_la_f)
-leads_qual = len(df_lq_f) # Aquí usa directamente el largo del DF filtrado de calificados
+leads_qual = len(df_lq_f) 
 agendas = len(df_v_f) 
 shows = df_v_f['Asistio'].sum()
 ventas = len(df_v_f[df_v_f['Estado_Simple'] == "✅ Venta"])
