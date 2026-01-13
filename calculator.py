@@ -228,8 +228,12 @@ with tab2:
 
         # Tabla detallada
         st.markdown("#### Detalle Numérico")
+        
+        # CORRECCIÓN: Seleccionamos solo las columnas numéricas para mostrar y formatear
+        columns_to_show = ['Facturación Proyectada', 'Profit Proyectado']
+        
         st.dataframe(
-            df_proj.set_index("Escenario").style.format("${:,.2f}"),
+            df_proj.set_index("Escenario")[columns_to_show].style.format("${:,.2f}"),
             use_container_width=True
         )
 
