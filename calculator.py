@@ -45,6 +45,37 @@ def calculate_remaining_days(target_date):
 st.title("📈 Calculadora Estratégica de Ads")
 st.markdown("---")
 
+# --- INSTRUCCIONES / ONBOARDING ---
+with st.expander("📘 GUÍA DE USO: ¿Cómo sacarle el jugo a esta herramienta? (Clic para abrir)"):
+    st.markdown("""
+    ### 🎯 Objetivo
+    Esta calculadora elimina las suposiciones manuales. Nos ayuda a responder dos preguntas críticas en segundos:
+    1. **Planificación:** *"¿Cuánto debo invertir para lograr X facturación?"*
+    2. **Proyección (Pacing):** *"Al ritmo que vamos hoy, ¿cómo cerraremos el mes?"*
+
+    ---
+
+    ### 🛠️ Paso a Paso
+
+    #### 1️⃣ Pestaña: Planificador de Inversión (Futuro)
+    *Úsala antes de lanzar campañas o al definir presupuestos.*
+    1. **Define tu Budget:** Elige si invertirás un monto total mensual o un monto específico por unos días (test).
+    2. **Métricas Objetivo:** Ingresa el precio de tu producto y el **ROAS** que aspiramos tener.
+    3. **Resultado:** La herramienta te dirá **cuánto gastar por día** y cuánto profit esperarías en un escenario ideal.
+
+    #### 2️⃣ Pestaña: Analizador de Rendimiento (Presente)
+    *Úsala para reportes diarios/semanales.*
+    1. **Ingresa la Realidad:** Copia de Facebook/TikTok Ads tu gasto actual (`Amount Spent`), facturación (`Conversion Value`) y ventas totales.
+    2. **Elige la Proyección:**
+        - **Final de Mes:** Calcula automáticamente cuántos días faltan para cerrar el mes.
+        - **Personalizado:** Si quieres proyectar solo los próximos 7 o 15 días.
+    3. **Interpreta los Escenarios:**
+        - 🔴 **Pesimista:** Si el rendimiento cae un 15% (fatiga de anuncios, etc.).
+        - 🔵 **Realista:** Si mantenemos el ritmo exacto de hoy (Velocity actual).
+        - 🟢 **Optimista:** Si logramos optimizar y mejorar un 15% el ritmo de ventas.
+
+    💡 **Tip Pro:** Usa el escenario "Realista" como base para reportar al cliente/gerencia, y el "Pesimista" para gestionar riesgos.
+    """)
 # --- SIDEBAR: DATOS GENERALES ---
 with st.sidebar:
     st.header("⚙️ Configuración Global")
