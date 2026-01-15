@@ -5,7 +5,7 @@ import plotly.express as px
 from datetime import datetime, timedelta
 
 # --- 1. CONFIGURACIÓN DE PÁGINA PRO ---
-st.set_page_config(page_title="Launch Command Center", page_icon="🚀", layout="wide")
+st.set_page_config(page_title="Launch VDP", page_icon="🚀", layout="wide")
 
 # Estilos CSS personalizados para dar el toque "PRO" y ajustar márgenes
 st.markdown("""
@@ -93,7 +93,7 @@ if df_filtrado.empty:
     st.stop()
 
 # --- 4. ESTRUCTURA DE PESTAÑAS (TABS) ---
-tab1, tab2, tab3 = st.tabs(["🚀 FASE 1: CAPTACIÓN", "🔥 FASE 2: NUTRICIÓN (Coming Soon)", "💰 FASE 3: VENTA (Coming Soon)"])
+tab1, tab2, tab3 = st.tabs(["🚀 FASE 1: CAPTACIÓN", "🔥 FASE 2: NUTRICIÓN", "💰 FASE 3: VENTA"])
 
 with tab1:
     # --- A. CÁLCULOS KPI ---
@@ -116,7 +116,7 @@ with tab1:
     k1, k2, k3, k4 = st.columns(4)
 
     # 1. Inversión (Delta: Diario)
-    k1.metric("💸 Inversión Total", f"${spend:,.0f}", f"${daily_spend:,.0f} / día (Avg)", delta_color="off")
+    k1.metric("💸 Inversión Total", f"${spend:,.0f}", f"Actual ${daily_spend:,.0f} / día", delta_color="off")
 
     # 2. Leads Hyros (Delta: CPL)
     k2.metric("👥 Leads (Hyros)", f"{int(leads):,}", f"CPL: ${cpl:.2f}", delta_color="inverse")
