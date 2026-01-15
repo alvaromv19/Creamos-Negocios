@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 
 # CONFIGURACIÓN DEL PROYECTO
-ARCHIVO_CSV = 'VDP - L1 - Database - F1 - Meta.csv' # Asegurate que este sea el nombre exacto
+ARCHIVO_CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR726VKYI1xIW9q5U50lN2iqY58-SIyN9gusKo_t8h2-HkTa7zERkSrQ6F4OUnTB2AWEh4CSvfwdZRL/pub?gid=0&single=true&output=csv' # Asegurate que este sea el nombre exacto
 NOMBRE_FASE = "FASE 1: Captación - VDP"
 
 def generar_dashboard():
