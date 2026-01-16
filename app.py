@@ -310,4 +310,71 @@ c_seguimiento = len(df_v_filtrado[df_v_filtrado['Estado_Simple'] == "👀 Seguim
 w1, w2, w3, w4, w5 = st.columns(5)
 w1.metric("✅ Tx. Ventas", c_venta, help="Transacciones totales (incluye cuotas)")
 w2.metric("👀 Seguimiento", c_seguimiento)
-w3.
+w3.metric("❌ No Show", c_noshow)
+w4.metric("🚫 Descalif.", c_descalif)
+w5.metric("📅 Agend/Otro", c_agendado)
+
+if not df_v_filtrado.empty:
+    daily_status = df_v_filtrado.groupby(['Fecha', 'Estado_Simple']).size().reset_index(name='Cantidad')
+    fig_status = px.bar(
+        daily_status, x="Fecha", y="Cantidad", color="Estado_Simple", 
+        title="Evolución Diaria de Leads",
+        color_discrete_map={
+            "✅ Venta": "#00CC96", "❌ No Show": "#EF553B",
+            "🚫 Descalificado": "#FFA15A", "👀 Seguimiento": "#636EFA",
+            "📅 Re-Agendado": "#AB63FA", "Otro/Pendiente": "#d3d3d3"
+        }
+    )
+    st.plotly_chart(fig_status, use_container_width=True)
+
+tab1, tab2 = st.tabs(["🏆 Ranking Closers", "📊 Facturación vs Ads"])
+
+with tab1:
+    if not df_v_filtrado.empty:
+        # AGRUPACIÓN INTELIGENTE POR CLOSER
+        ranking = df_v_filtrado.groupby('Closer').apply(
+            lambda x: pd.Series({
+                'Facturado': x['Monto ($)'].sum(), # Suma todo el dinero
+                'Asistencias': x.loc[x['Es_Asistencia'], 'Email'].nunique(), # Cuenta Emails únicos
+                'Ventas': x.loc[x['Estado_Simple'] == "✅ Venta", 'Email'].nunique() # Cuenta Emails únicos (Clientes)
+            })
+        ).reset_index()
+        
+        ranking['% Cierre'] = (ranking['Ventas'] / ranking['Asistencias'] * 100).fillna(0)
+        ranking = ranking.sort_values('Facturado', ascending=False)
+        
+        st.dataframe(
+            ranking.style.format({
+                'Facturado': '${:,.2f}',
+                'Asistencias': '{:.0f}',
+                'Ventas': '{:.0f}',
+                '% Cierre': '{:.1f}%'
+            }), 
+            use_container_width=True
+        )
+
+with tab2:
+    v_dia = df_v_filtrado.groupby('Fecha')['Monto ($)'].sum().reset_index()
+    fig_fin = px.line(
+        v_dia, x='Fecha', y='Monto ($)', 
+        title="Dinámica Diaria: Ingresos vs Gasto",
+        markers=True 
+    )
+    fig_fin.update_traces(line_color='#00CC96', name='Facturación', showlegend=True)
+
+    if closer_sel == "Todos" and not df_g_filtrado.empty:
+        g_dia = df_g_filtrado.groupby('Fecha')['Gasto'].sum().reset_index()
+        fig_fin.add_scatter(
+            x=g_dia['Fecha'], y=g_dia['Gasto'], 
+            mode='lines+markers', name='Gasto Ads', 
+            line=dict(color='#EF553B')
+        )
+
+    fig_fin.update_layout(
+        hovermode="x unified",
+        legend=dict(orientation="h", y=1.1, x=0.5, xanchor="center"),
+        yaxis_tickprefix="$"
+    )
+    fig_fin.update_traces(hovertemplate="$%{y:,.2f}") 
+
+    st.plotly_chart(fig_fin, use_container_width=True)
