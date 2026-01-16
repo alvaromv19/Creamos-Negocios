@@ -36,26 +36,23 @@ def formato_euro(valor, decimales=0):
     else:
         return "{:,.2f}".format(valor).replace(",", "X").replace(".", ",").replace("X", ".")
 
-# --- 2. CARGA Y LIMPIEZA DE DATOS (NÚCLEO DEL PROBLEMA) ---
+# --- 2. CARGA Y LIMPIEZA DE DATOS ---
 @st.cache_data(ttl=300) 
 def cargar_datos_vdp():
     url = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR726VKYI1xIW9q5U50lN2iqY58-SIyN9gusKo_t8h2-HkTa7zERkSrQ6F4OUnTB2AWEh4CSvfwdZRL/pub?gid=0&single=true&output=csv'
     try:
-        # Cargamos todo como STRING (dtype=str) para evitar que Pandas "adivine" mal los números
+        # Cargamos todo como STRING para limpieza estricta manual
         df = pd.read_csv(url, dtype=str) 
         df.columns = df.columns.str.strip()
         
         # --- FUNCIÓN DE LIMPIEZA ESTRICTA (EUROPEA) ---
-        # Regla: ELIMINAR PUNTOS (Miles) y REEMPLAZAR COMAS (Decimales) POR PUNTOS
         def force_european_format(x):
             if pd.isna(x) or str(x).strip() == "" or str(x).strip() == "-":
                 return 0.0
             
             x = str(x).replace('$', '').replace(' ', '').replace('%', '')
-            
             # 1. Quitamos los puntos de miles (ej: 1.200 -> 1200)
             x = x.replace('.', '')
-            
             # 2. Cambiamos la coma decimal por punto (ej: 50,5 -> 50.5)
             x = x.replace(',', '.')
             
@@ -83,10 +80,10 @@ df = cargar_datos_vdp()
 # --- 3. SIDEBAR Y DEBUGGER ---
 st.sidebar.title("🎛️ Control de Mando")
 
-# --- DEBUGGER: SOLO VISIBLE SI LO ACTIVAS ---
+# Debugger
 mostrar_raw = st.sidebar.checkbox("🔍 Modo Debug (Ver Data)", value=False)
 if mostrar_raw:
-    st.warning("MODO DEBUG ACTIVADO: Abajo verás la data procesada")
+    st.warning("MODO DEBUG ACTIVADO")
     st.write("Primeras 5 filas procesadas:", df.head())
 
 st.sidebar.caption("Filtros Globales")
@@ -129,6 +126,9 @@ with tab1:
     api = df_filtrado['API Hyros'].sum()
     grupo = df_filtrado['Grupo'].sum()
     visitas = df_filtrado['Visitas LP'].sum()
+    # NUEVO: Calculamos Clics
+    clicks = df_filtrado['Clicks'].sum()
+    
     dias_activos = (df_filtrado['Fecha'].max() - df_filtrado['Fecha'].min()).days + 1
     if dias_activos < 1: dias_activos = 1
 
@@ -185,31 +185,40 @@ with tab1:
     )
     st.plotly_chart(fig_electro, use_container_width=True)
 
-    # D. FUNNEL
+    # D. FUNNEL (MODIFICADO: Agregado Clicks al inicio)
     st.subheader("🔻 Eficiencia del Embudo")
 
-    stages = ['Visitas LP', 'Leads Captados', 'Leads en API', 'Unidos a Grupo']
-    values = [visitas, leads, api, grupo]
+    # 1. Agregamos 'Clicks Anuncios' al inicio de las etapas
+    stages = ['Clicks Anuncios', 'Visitas LP', 'Leads Captados', 'Leads en API', 'Unidos a Grupo']
+    # 2. Agregamos el valor de clicks al inicio de los valores
+    values = [clicks, visitas, leads, api, grupo]
     
     pcts = []
     for i, val in enumerate(values):
-        if i == 0: pcts.append(100)
+        if i == 0: 
+            pcts.append(100) # El primer paso es el 100% de referencia
         else:
             prev = values[i-1]
+            # Calcula el % respecto al paso anterior (ej: Visitas / Clicks)
             pct = (val / prev * 100) if prev > 0 else 0
             pcts.append(pct)
 
     fig_bar = go.Figure()
     text_labels = [f"{formato_euro(v, 0)} ({formato_euro(p, 1)}%)" for v, p in zip(values, pcts)]
 
+    # Colores: Agregamos un Gris Oscuro ('#545454') para Clicks al inicio
+    colors = ['#545454', '#ced4da', '#00CC96', '#636EFA', '#AB63FA']
+
     fig_bar.add_trace(go.Bar(
         y=stages, x=values, orientation='h', text=text_labels, textposition='auto',
-        marker=dict(color=['#ced4da', '#00CC96', '#636EFA', '#AB63FA'], line=dict(color='rgba(255, 255, 255, 0.2)', width=1)),
+        marker=dict(color=colors, line=dict(color='rgba(255, 255, 255, 0.2)', width=1)),
         width=0.3, opacity=0.9
     ))
 
     fig_bar.update_layout(
-        height=300, separators=",.", yaxis=dict(autorange="reversed"),
+        height=350, # Aumenté un poco la altura para que quepa la nueva barra
+        separators=",.", 
+        yaxis=dict(autorange="reversed"),
         xaxis=dict(showgrid=True, gridcolor='#2c2f38', title="Cantidad"),
         margin=dict(l=0, r=0, t=20, b=0),
         plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)"
