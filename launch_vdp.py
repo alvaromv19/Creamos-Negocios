@@ -141,7 +141,7 @@ with tab1:
     st.markdown("### 🎯 Métricas Principales")
     k1, k2, k3, k4 = st.columns(4)
 
-    k1.metric("💸 Inversión Total", f"${formato_euro(spend,,2f)}", f"Actual ${formato_euro(daily_spend, 0)} / día", delta_color="off")
+    k1.metric("💸 Inversión Total", f"${formato_euro(spend, 0)}", f"Actual ${formato_euro(daily_spend, 0)} / día", delta_color="off")
     k2.metric("👥 Leads (Hyros)", f"{formato_euro(leads, 0)}", f"CPL: ${formato_euro(cpl, 2)}", delta_color="inverse")
     k3.metric("🤖 Leads API", f"{formato_euro(api, 0)}", f"CPA: ${formato_euro(cpa, 2)}", delta_color="inverse")
     k4.metric("📲 Grupo WhatsApp", f"{formato_euro(grupo, 0)}", f"CPG: ${formato_euro(cpg, 2)}", delta_color="inverse")
