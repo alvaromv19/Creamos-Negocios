@@ -244,7 +244,7 @@ k1.metric("Facturación", f"${facturacion:,.2f}")
 k2.metric("Profit", f"${profit:,.2f}")
 delta_roas = roas - 3.5
 k3.metric("ROAS (3.5X)", f"{roas:.2f}x", delta=f"+{delta_roas:.2f}" if roas > 0 else 0)
-k4.metric("Ventas", f"${ventas_cerradas:,.0f}", delta=f"AOV ${AOV:,.2f}", delta_color="off")
+k4.metric("Ventas", f"{ventas_cerradas:,.0f}", delta=f"AOV ${AOV:,.2f}", delta_color="off")
 k5.metric("Inversión Ads", f"${inversion_ads:,.2f}")
 
 st.divider()
@@ -336,3 +336,4 @@ with tab2:
     fig_fin.update_traces(hovertemplate="$%{y:,.2f}") 
 
     st.plotly_chart(fig_fin, use_container_width=True)
+
