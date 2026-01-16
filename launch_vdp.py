@@ -28,17 +28,15 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- FUNCIÓN DE FORMATEO (EUROPEO/LATINO) ---
+# --- FUNCIÓN DE FORMATEO (VISUAL: EUROPEO/LATINO) ---
 def formato_euro(valor, decimales=0):
     """
-    Convierte 1500.50 -> "1.500,50"
+    Convierte 1500.50 -> "1.500,50" para mostrar en pantalla
     """
     if valor is None: return "0"
     if decimales == 0:
-        # Formato base python 1,000 -> reemplazar , por .
         return "{:,.0f}".format(valor).replace(",", ".")
     else:
-        # Formato base python 1,000.00 -> reemplazar , por X, . por , y X por .
         return "{:,.2f}".format(valor).replace(",", "X").replace(".", ",").replace("X", ".")
 
 # --- 2. CARGA DE DATOS ---
@@ -49,21 +47,45 @@ def cargar_datos_vdp():
         df = pd.read_csv(url)
         df.columns = df.columns.str.strip()
         
-        # Limpieza de entrada (Mantiene lógica original para leer datos correctamente)
-        def clean_currency(x):
+        # --- NUEVA FUNCIÓN DE LIMPIEZA INTELIGENTE ---
+        def clean_currency_smart(x):
             if isinstance(x, str):
                 x = x.replace('$', '').replace(' ', '').replace('%', '')
-                if 'DIV/0' in x or x.strip() == '-' or x.strip() == '': return 0.0
-                # Aquí asumimos que el Google Sheet viene en formato europeo (1.000,00)
-                # Lo convertimos a float de Python (1000.00) para poder calcular
-                x = x.replace('.', '').replace(',', '.')
+                if 'DIV/0' in x or x.strip() in ['-', '']: return 0.0
+                
+                # Detectar formato miles/decimales por posición
+                if ',' in x and '.' in x:
+                    # Si la coma está al final (1.500,50) -> Formato Europeo
+                    if x.rfind(',') > x.rfind('.'):
+                        x = x.replace('.', '').replace(',', '.')
+                    # Si el punto está al final (1,500.50) -> Formato Americano
+                    else:
+                        x = x.replace(',', '')
+                
+                elif ',' in x:
+                    # Caso ambiguo (1,500 vs 1,5)
+                    # Si tiene 3 dígitos al final (1,500), es miles -> quitamos coma
+                    parts = x.split(',')
+                    if len(parts[-1]) == 3: 
+                        x = x.replace(',', '')
+                    else: 
+                        x = x.replace(',', '.') # Es decimal
+                
+                elif '.' in x:
+                    # Caso ambiguo (1.500 vs 1.5)
+                    # Si tiene 3 dígitos al final (1.500), es miles -> quitamos punto
+                    parts = x.split('.')
+                    if len(parts[-1]) == 3:
+                        x = x.replace('.', '')
+                    # Si no, asumimos que es decimal y dejamos el punto
+                
                 try: return float(x)
                 except ValueError: return 0.0
             return x
 
         cols = ['Spent', 'Clicks', 'Visitas LP', 'Leads Hyros', 'API Hyros', 'Grupo']
         for col in cols:
-            if col in df.columns: df[col] = df[col].apply(clean_currency)
+            if col in df.columns: df[col] = df[col].apply(clean_currency_smart)
         
         if 'Fecha' in df.columns:
             df['Fecha'] = pd.to_datetime(df['Fecha'], dayfirst=True, errors='coerce')
@@ -129,7 +151,7 @@ with tab1:
     st.markdown("### 🎯 Métricas Principales")
     k1, k2, k3, k4 = st.columns(4)
 
-    # Usamos formato_euro() para mostrar los números correctamente
+    # Usamos formato_euro() para visualizar
     k1.metric("💸 Inversión Total", f"${formato_euro(spend, 0)}", f"Actual ${formato_euro(daily_spend, 0)} / día", delta_color="off")
     k2.metric("👥 Leads (Hyros)", f"{formato_euro(leads, 0)}", f"CPL: ${formato_euro(cpl, 2)}", delta_color="inverse")
     k3.metric("🤖 Leads API", f"{formato_euro(api, 0)}", f"CPA: ${formato_euro(cpa, 2)}", delta_color="inverse")
@@ -163,7 +185,7 @@ with tab1:
     fig_electro.update_layout(
         height=450,
         hovermode="x unified",
-        separators=",.",  # <--- ESTO CAMBIA EL FORMATO EN EL GRÁFICO (Decimal=, Miles=.)
+        separators=",.", # Formato para gráfico (coma decimal)
         xaxis=dict(showgrid=False),
         yaxis=dict(title="Volumen (Cantidad)", showgrid=True, gridcolor='#2c2f38'),
         yaxis2=dict(title="Costo Unitario ($)", overlaying='y', side='right', showgrid=False),
@@ -192,7 +214,6 @@ with tab1:
 
     fig_bar = go.Figure()
 
-    # Formateamos el texto manualmente para que salga con puntos de miles y coma decimal
     text_labels = [f"{formato_euro(v, 0)} ({formato_euro(p, 1)}%)" for v, p in zip(values, pcts)]
 
     fig_bar.add_trace(go.Bar(
@@ -211,7 +232,7 @@ with tab1:
 
     fig_bar.update_layout(
         height=300,
-        separators=",.", # Formato Gráfico
+        separators=",.", # Formato gráfico
         yaxis=dict(autorange="reversed"),
         xaxis=dict(showgrid=True, gridcolor='#2c2f38', title="Cantidad"),
         margin=dict(l=0, r=0, t=20, b=0),
@@ -222,7 +243,6 @@ with tab1:
 
     # --- E. DETALLE DE DATOS (Expander) ---
     with st.expander("📂 Ver Tabla de Datos Diarios"):
-        # Aplicamos el formato a la tabla también
         st.dataframe(
             daily.style.format({
                 'Spent': lambda x: f"${formato_euro(x, 2)}",
