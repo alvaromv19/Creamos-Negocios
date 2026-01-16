@@ -174,7 +174,7 @@ with tab1:
 
     # Costos
     fig_electro.add_trace(go.Scatter(x=daily['Fecha'], y=daily['CPL_Dia'], name='CPL ($)', 
-                         mode='lines', line=dict(color='#EF553B', width=1, dash='dot'), yaxis='y2'))
+                         mode='lines', line=dict(color='#EF553B', width=1, dash='dot'), yaxis='y2', hovertemplate="$%{y:,.2f}"))
 
     fig_electro.update_layout(
         height=450,
