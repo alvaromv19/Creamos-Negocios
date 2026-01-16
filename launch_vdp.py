@@ -4,10 +4,10 @@ import plotly.graph_objects as go
 import plotly.express as px
 from datetime import datetime, timedelta
 
-# --- 1. CONFIGURACIÓN DE PÁGINA PRO ---
+# --- 1. CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(page_title="Launch VDP", page_icon="🚀", layout="wide")
 
-# Estilos CSS personalizados
+# Estilos CSS
 st.markdown("""
 <style>
     .stTabs [data-baseweb="tab-list"] { gap: 2px; }
@@ -28,77 +28,67 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- FUNCIÓN DE FORMATEO (VISUAL: EUROPEO/LATINO) ---
+# --- FUNCIÓN DE VISUALIZACIÓN (Salida en Pantalla) ---
 def formato_euro(valor, decimales=0):
-    """
-    Convierte 1500.50 -> "1.500,50" para mostrar en pantalla
-    """
     if valor is None: return "0"
     if decimales == 0:
         return "{:,.0f}".format(valor).replace(",", ".")
     else:
         return "{:,.2f}".format(valor).replace(",", "X").replace(".", ",").replace("X", ".")
 
-# --- 2. CARGA DE DATOS ---
+# --- 2. CARGA Y LIMPIEZA DE DATOS (NÚCLEO DEL PROBLEMA) ---
 @st.cache_data(ttl=300) 
 def cargar_datos_vdp():
     url = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR726VKYI1xIW9q5U50lN2iqY58-SIyN9gusKo_t8h2-HkTa7zERkSrQ6F4OUnTB2AWEh4CSvfwdZRL/pub?gid=0&single=true&output=csv'
     try:
-        df = pd.read_csv(url)
+        # Cargamos todo como STRING (dtype=str) para evitar que Pandas "adivine" mal los números
+        df = pd.read_csv(url, dtype=str) 
         df.columns = df.columns.str.strip()
         
-        # --- NUEVA FUNCIÓN DE LIMPIEZA INTELIGENTE ---
-        def clean_currency_smart(x):
-            if isinstance(x, str):
-                x = x.replace('$', '').replace(' ', '').replace('%', '')
-                if 'DIV/0' in x or x.strip() in ['-', '']: return 0.0
-                
-                # Detectar formato miles/decimales por posición
-                if ',' in x and '.' in x:
-                    # Si la coma está al final (1.500,50) -> Formato Europeo
-                    if x.rfind(',') > x.rfind('.'):
-                        x = x.replace('.', '').replace(',', '.')
-                    # Si el punto está al final (1,500.50) -> Formato Americano
-                    else:
-                        x = x.replace(',', '')
-                
-                elif ',' in x:
-                    # Caso ambiguo (1,500 vs 1,5)
-                    # Si tiene 3 dígitos al final (1,500), es miles -> quitamos coma
-                    parts = x.split(',')
-                    if len(parts[-1]) == 3: 
-                        x = x.replace(',', '')
-                    else: 
-                        x = x.replace(',', '.') # Es decimal
-                
-                elif '.' in x:
-                    # Caso ambiguo (1.500 vs 1.5)
-                    # Si tiene 3 dígitos al final (1.500), es miles -> quitamos punto
-                    parts = x.split('.')
-                    if len(parts[-1]) == 3:
-                        x = x.replace('.', '')
-                    # Si no, asumimos que es decimal y dejamos el punto
-                
-                try: return float(x)
-                except ValueError: return 0.0
-            return x
+        # --- FUNCIÓN DE LIMPIEZA ESTRICTA (EUROPEA) ---
+        # Regla: ELIMINAR PUNTOS (Miles) y REEMPLAZAR COMAS (Decimales) POR PUNTOS
+        def force_european_format(x):
+            if pd.isna(x) or str(x).strip() == "" or str(x).strip() == "-":
+                return 0.0
+            
+            x = str(x).replace('$', '').replace(' ', '').replace('%', '')
+            
+            # 1. Quitamos los puntos de miles (ej: 1.200 -> 1200)
+            x = x.replace('.', '')
+            
+            # 2. Cambiamos la coma decimal por punto (ej: 50,5 -> 50.5)
+            x = x.replace(',', '.')
+            
+            try:
+                return float(x)
+            except ValueError:
+                return 0.0
 
         cols = ['Spent', 'Clicks', 'Visitas LP', 'Leads Hyros', 'API Hyros', 'Grupo']
         for col in cols:
-            if col in df.columns: df[col] = df[col].apply(clean_currency_smart)
+            if col in df.columns:
+                df[col] = df[col].apply(force_european_format)
         
         if 'Fecha' in df.columns:
             df['Fecha'] = pd.to_datetime(df['Fecha'], dayfirst=True, errors='coerce')
             df = df.sort_values('Fecha')
+            
         return df
     except Exception as e:
-        st.error(f"Error de conexión: {e}")
+        st.error(f"Error crítico cargando datos: {e}")
         return pd.DataFrame()
 
 df = cargar_datos_vdp()
 
-# --- 3. SIDEBAR (FILTROS) ---
+# --- 3. SIDEBAR Y DEBUGGER ---
 st.sidebar.title("🎛️ Control de Mando")
+
+# --- DEBUGGER: SOLO VISIBLE SI LO ACTIVAS ---
+mostrar_raw = st.sidebar.checkbox("🔍 Modo Debug (Ver Data)", value=False)
+if mostrar_raw:
+    st.warning("MODO DEBUG ACTIVADO: Abajo verás la data procesada")
+    st.write("Primeras 5 filas procesadas:", df.head())
+
 st.sidebar.caption("Filtros Globales")
 
 filtro_tiempo = st.sidebar.selectbox(
@@ -129,11 +119,11 @@ if df_filtrado.empty:
     st.warning("⚠️ No hay datos para las fechas seleccionadas.")
     st.stop()
 
-# --- 4. ESTRUCTURA DE PESTAÑAS (TABS) ---
+# --- 4. TABS Y DASHBOARD ---
 tab1, tab2, tab3 = st.tabs(["🚀 FASE 1: CAPTACIÓN", "🔥 FASE 2: NUTRICIÓN", "💰 FASE 3: VENTA"])
 
 with tab1:
-    # --- A. CÁLCULOS KPI ---
+    # A. KPI CALCULATIONS
     spend = df_filtrado['Spent'].sum()
     leads = df_filtrado['Leads Hyros'].sum()
     api = df_filtrado['API Hyros'].sum()
@@ -147,11 +137,10 @@ with tab1:
     cpg = spend / grupo if grupo > 0 else 0
     daily_spend = spend / dias_activos
 
-    # --- B. HEADER DE MÉTRICAS (FORMATO PERSONALIZADO) ---
+    # B. METRICS
     st.markdown("### 🎯 Métricas Principales")
     k1, k2, k3, k4 = st.columns(4)
 
-    # Usamos formato_euro() para visualizar
     k1.metric("💸 Inversión Total", f"${formato_euro(spend, 0)}", f"Actual ${formato_euro(daily_spend, 0)} / día", delta_color="off")
     k2.metric("👥 Leads (Hyros)", f"{formato_euro(leads, 0)}", f"CPL: ${formato_euro(cpl, 2)}", delta_color="inverse")
     k3.metric("🤖 Leads API", f"{formato_euro(api, 0)}", f"CPA: ${formato_euro(cpa, 2)}", delta_color="inverse")
@@ -159,7 +148,7 @@ with tab1:
 
     st.markdown("---")
 
-    # --- C. GRÁFICO 1: ELECTROCARDIOGRAMA ---
+    # C. CHARTS
     st.subheader("📈 Tendencia de Tráfico & Costos")
     
     daily = df_filtrado.groupby('Fecha').agg({
@@ -170,7 +159,7 @@ with tab1:
     
     fig_electro = go.Figure()
 
-    # EJE Y IZQUIERDO (VOLUMEN)
+    # Volumen
     fig_electro.add_trace(go.Scatter(x=daily['Fecha'], y=daily['Leads Hyros'], name='Leads', 
                          mode='lines+markers', line=dict(color='#00CC96', width=3), marker=dict(size=6)))
     fig_electro.add_trace(go.Scatter(x=daily['Fecha'], y=daily['API Hyros'], name='API', 
@@ -178,14 +167,14 @@ with tab1:
     fig_electro.add_trace(go.Scatter(x=daily['Fecha'], y=daily['Grupo'], name='Grupo', 
                          mode='lines+markers', line=dict(color='#AB63FA', width=3), marker=dict(size=6)))
 
-    # EJE Y DERECHO (COSTOS)
+    # Costos
     fig_electro.add_trace(go.Scatter(x=daily['Fecha'], y=daily['CPL_Dia'], name='CPL ($)', 
                          mode='lines', line=dict(color='#EF553B', width=1, dash='dot'), yaxis='y2'))
 
     fig_electro.update_layout(
         height=450,
         hovermode="x unified",
-        separators=",.", # Formato para gráfico (coma decimal)
+        separators=",.", 
         xaxis=dict(showgrid=False),
         yaxis=dict(title="Volumen (Cantidad)", showgrid=True, gridcolor='#2c2f38'),
         yaxis2=dict(title="Costo Unitario ($)", overlaying='y', side='right', showgrid=False),
@@ -196,7 +185,7 @@ with tab1:
     )
     st.plotly_chart(fig_electro, use_container_width=True)
 
-    # --- D. GRÁFICO 2: BARRA DE PROGRESO FINA (FUNNEL) ---
+    # D. FUNNEL
     st.subheader("🔻 Eficiencia del Embudo")
 
     stages = ['Visitas LP', 'Leads Captados', 'Leads en API', 'Unidos a Grupo']
@@ -210,38 +199,24 @@ with tab1:
             pct = (val / prev * 100) if prev > 0 else 0
             pcts.append(pct)
 
-    colors = ['#ced4da', '#00CC96', '#636EFA', '#AB63FA']
-
     fig_bar = go.Figure()
-
     text_labels = [f"{formato_euro(v, 0)} ({formato_euro(p, 1)}%)" for v, p in zip(values, pcts)]
 
     fig_bar.add_trace(go.Bar(
-        y=stages,
-        x=values,
-        orientation='h',
-        text=text_labels,
-        textposition='auto',
-        marker=dict(
-            color=colors,
-            line=dict(color='rgba(255, 255, 255, 0.2)', width=1)
-        ),
-        width=0.3,
-        opacity=0.9
+        y=stages, x=values, orientation='h', text=text_labels, textposition='auto',
+        marker=dict(color=['#ced4da', '#00CC96', '#636EFA', '#AB63FA'], line=dict(color='rgba(255, 255, 255, 0.2)', width=1)),
+        width=0.3, opacity=0.9
     ))
 
     fig_bar.update_layout(
-        height=300,
-        separators=",.", # Formato gráfico
-        yaxis=dict(autorange="reversed"),
+        height=300, separators=",.", yaxis=dict(autorange="reversed"),
         xaxis=dict(showgrid=True, gridcolor='#2c2f38', title="Cantidad"),
         margin=dict(l=0, r=0, t=20, b=0),
-        plot_bgcolor="rgba(0,0,0,0)",
-        paper_bgcolor="rgba(0,0,0,0)"
+        plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)"
     )
     st.plotly_chart(fig_bar, use_container_width=True)
 
-    # --- E. DETALLE DE DATOS (Expander) ---
+    # E. DATA TABLE
     with st.expander("📂 Ver Tabla de Datos Diarios"):
         st.dataframe(
             daily.style.format({
