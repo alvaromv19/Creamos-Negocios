@@ -61,7 +61,7 @@ def cargar_todo():
             df_vol['Email'] = df_vol['Email'].astype(str).str.lower().str.strip()
         
         # Buscar fecha de creación
-        cols_date_v = [c for c in df_vol.columns if 'created' in c.lower() or 'fecha' in c.lower()]
+        cols_date_v = [c for c in df_vol.columns if 'Fecha Creación' in c.lower() or 'fecha' in c.lower()]
         if cols_date_v:
             df_vol['Fecha_Ingreso'] = pd.to_datetime(df_vol[cols_date_v[0]], errors='coerce')
     except: df_vol = pd.DataFrame()
@@ -75,7 +75,7 @@ def cargar_todo():
             df_qual['Email'] = df_qual['Email'].astype(str).str.lower().str.strip()
             
         # Buscar fecha calificación (a veces es Created)
-        cols_date_q = [c for c in df_qual.columns if 'created' in c.lower() or 'fecha' in c.lower()]
+        cols_date_q = [c for c in df_qual.columns if 'Fecha Creación' in c.lower() or 'fecha' in c.lower()]
         if cols_date_q:
             df_qual['Fecha_Calificado'] = pd.to_datetime(df_qual[cols_date_q[0]], errors='coerce')
     except: df_qual = pd.DataFrame()
