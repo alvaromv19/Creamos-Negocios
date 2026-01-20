@@ -216,10 +216,10 @@ with tab1:
                     <p style="font-size: 14px; color: #666; margin-bottom: 10px;">Asignación: <b>{pct_actual}%</b></p>
                     <hr style="margin: 5px 0;">
                     <p style="margin:0; font-size:12px;">Total Asignado:</p>
-                    <p style="font-size: 21px; font-weight: bold; color: #333; margin:0;">${monto_total_asignado:,.2f}</p>
+                    <p style="font-size: 25px; font-weight: bold; color: #333; margin:0;">${monto_total_asignado:,.2f}</p>
                     <div style="margin-top: 10px; background-color: #f9f9f9; padding: 5px; border-radius: 4px;">
-                        <p style="margin:0; font-size:14px; color: #555;">🔥 Diario Sugerido:</p>
-                        <p style="margin:0; font-size: 18px; font-weight: bold; color: {colores_borde[i]};">${monto_diario_asignado:,.2f}</p>
+                        <p style="margin:0; font-size:19px; color: #555;">🔥 Diario Sugerido:</p>
+                        <p style="margin:0; font-size: 24px; font-weight: bold; color: {colores_borde[i]};">${monto_diario_asignado:,.2f}</p>
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
