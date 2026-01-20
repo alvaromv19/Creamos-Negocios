@@ -142,9 +142,11 @@ with tab1:
             if not lead_vol.empty:
                 data = lead_vol.iloc[0]
                 fecha_in = data.get('Fecha_Ingreso', 'Desconocida')
-                campana = data.get('Origen Campaña', 'N/A')
-                adset = data.get('Ad set', 'N/A')
-                anuncio = data.get('Nombre del Ad', 'N/A')
+                
+                # --- AQUÍ ESTÁ EL CAMBIO DE COLUMNAS CORRECTO ---
+                campana = data.get('Campaña (UTM)', 'N/A')
+                adset = data.get('Conjunto (ID)', 'N/A')
+                anuncio = data.get('Ad Content', 'N/A')
                 
                 st.markdown(f"""
                 <div class="timeline-card">
@@ -187,6 +189,7 @@ with tab1:
                     icono = "💰" if "venta" in res else ("❌" if "no show" in res else "📞")
                     
                     # Atribución Final (confirmada por Closer)
+                    # Estas columnas están bien según lo que me dijiste del Sheet Resultados
                     atrib_camp = row.get('Origen Campaña', 'N/A')
                     atrib_ad = row.get('Nombre del Ad', 'N/A')
 
