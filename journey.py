@@ -146,8 +146,8 @@ with tab1:
                  if val and str(val).lower() != 'nan': nombre_lead = str(val).title()
             
             # Prioridad 2: Sacarlo de la hoja de Volumen (Si no llegó a llamada)
-            elif not lead_vol.empty and 'Name' in lead_vol.columns:
-                 val = lead_vol.iloc[0]['Name']
+            elif not lead_vol.empty and 'Nombre' in lead_vol.columns:
+                 val = lead_vol.iloc[0]['Nombre']
                  if val and str(val).lower() != 'nan': nombre_lead = str(val).title()
             
             # MOSTRAR EL HEADLINE NOMBRE
