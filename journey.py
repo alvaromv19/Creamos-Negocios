@@ -114,7 +114,7 @@ df_vol, df_qual, df_res = cargar_todo()
 # --- 4. INTERFAZ PRINCIPAL ---
 st.title("🕵️ DETECTIVE DE LEADS & RANKING")
 
-# --- INICIO DEL TOGGLE DE AYUDA (CORREGIDO) ---
+# --- TOGGLE DE AYUDA (AQUÍ ESTÁ CORRECTAMENTE INTEGRADO) ---
 with st.expander("ℹ️ GUÍA RÁPIDA: ¿CÓMO USAR ESTE DASHBOARD?"):
     st.markdown("""
     <div style="background-color: #111; padding: 20px; border-radius: 10px; border: 1px solid #333; color: #ccc;">
@@ -142,7 +142,7 @@ with st.expander("ℹ️ GUÍA RÁPIDA: ¿CÓMO USAR ESTE DASHBOARD?"):
 
     </div>
     """, unsafe_allow_html=True)
-# --- FIN DEL TOGGLE DE AYUDA ---
+# --- FIN TOGGLE ---
 
 tab1, tab2 = st.tabs(["🔍 Buscador de Lead", "🏆 Ranking Clientes"])
 
