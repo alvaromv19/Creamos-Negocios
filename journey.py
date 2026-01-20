@@ -114,30 +114,32 @@ df_vol, df_qual, df_res = cargar_todo()
 # --- 4. INTERFAZ PRINCIPAL ---
 st.title("🕵️ DETECTIVE DE LEADS & RANKING")
 
-# --- INICIO DEL TOGGLE DE AYUDA ---
+# --- INICIO DEL TOGGLE DE AYUDA (CORREGIDO) ---
 with st.expander("ℹ️ GUÍA RÁPIDA: ¿CÓMO USAR ESTE DASHBOARD?"):
     st.markdown("""
-    <div style="background-color: #111; padding: 20px; border-radius: 10px; border: 1px solid #333;">
-        <h4 style="color: #00f3ff; margin-top: 0;">🔍 Pestaña 1: Buscador de Lead</h4>
-        <p style="color: #aaa; font-size: 0.9rem; margin-bottom: 15px;">
-            El <b>Detective</b> rastrea la historia completa de un lead usando su correo.
-            <ul>
-                <li><b>Ingreso:</b> Muestra cuándo llenó el formulario y la atribución (Campaña/Anuncio).</li>
-                <li><b>Calificación:</b> Confirma si pasó el filtro de calidad.</li>
-                <li><b>Cierre:</b> Detalla el resultado de la llamada, notas del closer y monto pagado.</li>
-            </ul>
-        </p>
+    <div style="background-color: #111; padding: 20px; border-radius: 10px; border: 1px solid #333; color: #ccc;">
         
-        <hr style="border-color: #333;">
-        
-        <h4 style="color: #0aff00; margin-top: 0;">🏆 Pestaña 2: Ranking Clientes</h4>
-        <p style="color: #aaa; font-size: 0.9rem;">
-            Lista tus mejores clientes ordenados por <b>Facturación Total (LTV)</b>.
-            <ul>
-                <li><b>Suma Inteligente:</b> Si un cliente pagó en cuotas (varias filas), aquí verás el total sumado.</li>
-                <li><b>Atribución:</b> Mira rápidamente de qué campaña vinieron tus mejores compradores.</li>
-            </ul>
+        <h4 style="color: #00f3ff; margin-top: 0; margin-bottom: 10px;">🔍 Pestaña 1: Buscador de Lead</h4>
+        <p style="font-size: 0.9rem; margin-bottom: 10px;">
+            El <b>Detective</b> rastrea la historia completa de un lead usando su correo:
         </p>
+        <ul style="font-size: 0.9rem; margin-bottom: 20px; padding-left: 20px;">
+            <li style="margin-bottom: 5px;"><b>Ingreso:</b> Muestra cuándo llenó el formulario y la atribución (Campaña/Anuncio).</li>
+            <li style="margin-bottom: 5px;"><b>Calificación:</b> Confirma si pasó el filtro de calidad.</li>
+            <li><b>Cierre:</b> Detalla el resultado de la llamada, notas del closer y monto pagado.</li>
+        </ul>
+        
+        <hr style="border-color: #333; margin: 20px 0;">
+        
+        <h4 style="color: #0aff00; margin-top: 0; margin-bottom: 10px;">🏆 Pestaña 2: Ranking Clientes</h4>
+        <p style="font-size: 0.9rem; margin-bottom: 10px;">
+            Lista tus mejores clientes ordenados por <b>Facturación Total (LTV)</b>:
+        </p>
+        <ul style="font-size: 0.9rem; margin-bottom: 0; padding-left: 20px;">
+            <li style="margin-bottom: 5px;"><b>Suma Inteligente:</b> Si un cliente pagó en cuotas (varias filas), aquí verás el total sumado.</li>
+            <li><b>Atribución:</b> Mira rápidamente de qué campaña vinieron tus mejores compradores.</li>
+        </ul>
+
     </div>
     """, unsafe_allow_html=True)
 # --- FIN DEL TOGGLE DE AYUDA ---
