@@ -140,7 +140,7 @@ with tab1:
             # --- ETAPA 0: Nombre ---
             st.markdown("NOMBRE")
             if not lead_vol.empty:
-                Nombre = row.get('Nombre', 'S/N')
+                Nombre = data.get('Nombre', 'S/N')
 
                 st.markdown(f"""
                 <div class="timeline-card">
