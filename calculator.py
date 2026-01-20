@@ -21,6 +21,13 @@ st.markdown("""
         padding: 20px;
         box-shadow: 2px 2px 10px rgba(0,0,0,0.1);
     }
+    .platform-card {
+        background-color: #e8f4f8; /* Color suave para las tarjetas de plataformas */
+        border-radius: 10px;
+        padding: 15px;
+        border: 1px solid #d1e7ef;
+        margin-bottom: 10px;
+    }
     .stMetric label {
         font-weight: bold;
         color: #555;
@@ -61,21 +68,16 @@ with st.expander("📘 GUÍA DE USO: ¿Cómo sacarle el jugo a esta herramienta?
     *Úsala antes de lanzar campañas o al definir presupuestos.*
     1. **Define tu Budget:** Elige si invertirás un monto total mensual o un monto específico por unos días (test).
     2. **Métricas Objetivo:** Ingresa el precio de tu producto y el **ROAS** que aspiramos tener.
-    3. **Resultado:** La herramienta te dirá **cuánto gastar por día** y cuánto profit esperarías en un escenario ideal.
+    3. **Distribución por Canal:** Usa los sliders para repartir el presupuesto entre Meta, TikTok, YouTube y Otros.
+    4. **Resultado:** Verás cuánto gastar **por día en cada plataforma**.
 
     #### 2️⃣ Pestaña: Analizador de Rendimiento (Presente)
     *Úsala para reportes diarios/semanales.*
-    1. **Ingresa la Realidad:** Copia de Facebook/TikTok Ads tu gasto actual (`Amount Spent`), facturación (`Conversion Value`) y ventas totales.
-    2. **Elige la Proyección:**
-        - **Final de Mes:** Calcula automáticamente cuántos días faltan para cerrar el mes.
-        - **Personalizado:** Si quieres proyectar solo los próximos 7 o 15 días.
-    3. **Interpreta los Escenarios:**
-        - 🔴 **Pesimista:** Si el rendimiento cae un 15% (fatiga de anuncios, etc.).
-        - 🔵 **Realista:** Si mantenemos el ritmo exacto de hoy (Velocity actual).
-        - 🟢 **Optimista:** Si logramos optimizar y mejorar un 15% el ritmo de ventas.
-
-    💡 **Tip Pro:** Usa el escenario "Realista" como base para reportar al cliente/gerencia, y el "Pesimista" para gestionar riesgos.
+    1. **Ingresa la Realidad:** Copia de tus Ads Managers el gasto actual (`Amount Spent`), facturación (`Conversion Value`) y ventas.
+    2. **Elige la Proyección:** Final de Mes o Personalizada.
+    3. **Interpreta los Escenarios:** Pesimista (-15%), Realista (Ritmo actual), Optimista (+15%).
     """)
+
 # --- SIDEBAR: DATOS GENERALES ---
 with st.sidebar:
     st.header("⚙️ Configuración Global")
@@ -111,7 +113,6 @@ with tab1:
         budget = st.number_input("💰 Presupuesto a Invertir ($)", min_value=0.0, value=1000.0, step=50.0)
         
         if investment_mode == "Presupuesto Total Mensual":
-            # Si es mensual, usamos los días restantes calculados en sidebar
             days_to_calculate = days_remaining_month
             st.success(f"Calculando distribución para los **{days_to_calculate} días** restantes del mes.")
         else:
@@ -130,13 +131,98 @@ with tab1:
         projected_profit = projected_revenue - budget
         
         st.markdown("---")
-        st.markdown("### 📝 Resultados de la Planificación")
+        st.markdown("### 📝 Resultados Generales")
         
         m1, m2, m3, m4 = st.columns(4)
-        m1.metric("Inversión Diaria Sugerida", f"${daily_spend:,.2f}")
+        m1.metric("Inversión Diaria Total", f"${daily_spend:,.2f}")
         m2.metric("Facturación Proyectada", f"${projected_revenue:,.2f}")
         m3.metric("Profit Estimado", f"${projected_profit:,.2f}", delta=f"{((projected_profit/budget)*100):.1f}% Margen")
-        m4.metric("Ventas Necesarias", f"{int(projected_sales)}")
+        m4.metric("Ventas Totales Necesarias", f"{int(projected_sales)}")
+
+        # --- NUEVA SECCIÓN: DISTRIBUCIÓN POR PLATAFORMA ---
+        st.markdown("---")
+        st.subheader("📢 Distribución de Presupuesto por Canal (Traffic Source)")
+        st.markdown("Ajusta el porcentaje (%) para ver cuánto dinero destinar a cada plataforma.")
+
+        # Contenedores para sliders
+        p_col1, p_col2, p_col3, p_col4 = st.columns(4)
+        
+        # Diccionario para guardar valores
+        distribucion = {}
+
+        # 1. Meta Ads
+        with p_col1:
+            st.markdown("**🔵 Meta Ads (FB/IG)**")
+            pct_meta = st.slider("Asignación Meta %", 0, 100, 50, key="slider_meta")
+            distribucion["Meta"] = pct_meta
+
+        # 2. TikTok Ads
+        with p_col2:
+            st.markdown("**⚫ TikTok Ads**")
+            pct_tiktok = st.slider("Asignación TikTok %", 0, 100, 30, key="slider_tiktok")
+            distribucion["TikTok"] = pct_tiktok
+
+        # 3. YouTube Ads
+        with p_col3:
+            st.markdown("**🔴 YouTube Ads**")
+            pct_youtube = st.slider("Asignación YouTube %", 0, 100, 10, key="slider_youtube")
+            distribucion["YouTube"] = pct_youtube
+        
+        # 4. Otros
+        with p_col4:
+            st.markdown("**🟠 Otros / Testing**")
+            pct_others = st.slider("Asignación Otros %", 0, 100, 10, key="slider_others")
+            distribucion["Otros"] = pct_others
+
+        # Validación de suma 100%
+        total_pct = sum(distribucion.values())
+        if total_pct != 100:
+            if total_pct > 100:
+                st.error(f"⚠️ ¡Cuidado! Estás asignando un **{total_pct}%** del presupuesto. Reduce {total_pct - 100}% para cuadrar.")
+            else:
+                st.warning(f"⚠️ Tienes asignado un **{total_pct}%**. Te falta asignar un {100 - total_pct}% del presupuesto.")
+        else:
+            st.success("✅ Distribución perfecta (100%)")
+
+        # Mostrar tarjetas de resultados con estilos
+        st.markdown("#### 💰 Detalle de Inversión Sugerida")
+        
+        # Columnas para las tarjetas
+        res_col1, res_col2, res_col3, res_col4 = st.columns(4)
+        
+        # Iteramos sobre las columnas y los datos para pintar las tarjetas
+        columns_refs = [res_col1, res_col2, res_col3, res_col4]
+        nombres = ["Meta Ads", "TikTok Ads", "YouTube Ads", "Otros"]
+        valores_pct = [pct_meta, pct_tiktok, pct_youtube, pct_others]
+        colores_borde = ["#1877F2", "#000000", "#FF0000", "#FF9900"] # Colores representativos
+        
+        for i in range(4):
+            with columns_refs[i]:
+                pct_actual = valores_pct[i]
+                # Cálculo de montos
+                monto_total_asignado = budget * (pct_actual / 100)
+                monto_diario_asignado = daily_spend * (pct_actual / 100)
+                
+                # HTML Card personalizado
+                st.markdown(f"""
+                <div style="
+                    background-color: white;
+                    border-left: 5px solid {colores_borde[i]};
+                    padding: 15px;
+                    border-radius: 5px;
+                    box-shadow: 2px 2px 5px rgba(0,0,0,0.05);
+                    margin-bottom: 10px;">
+                    <h4 style="margin:0; color: #333;">{nombres[i]}</h4>
+                    <p style="font-size: 14px; color: #666; margin-bottom: 10px;">Asignación: <b>{pct_actual}%</b></p>
+                    <hr style="margin: 5px 0;">
+                    <p style="margin:0; font-size:12px;">Total Asignado:</p>
+                    <p style="font-size: 18px; font-weight: bold; color: #333; margin:0;">${monto_total_asignado:,.2f}</p>
+                    <div style="margin-top: 10px; background-color: #f9f9f9; padding: 5px; border-radius: 4px;">
+                        <p style="margin:0; font-size:11px; color: #555;">🔥 Diario Sugerido:</p>
+                        <p style="margin:0; font-size: 16px; font-weight: bold; color: {colores_borde[i]};">${monto_diario_asignado:,.2f}</p>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
 
     else:
         st.warning("Configura los días y el presupuesto para ver los cálculos.")
@@ -168,7 +254,7 @@ with tab2:
     
     if projection_mode == "Final de Mes (Automático)":
         days_future = days_remaining_month
-        total_days_period = days_in_month # Para el cálculo de "Total Mes"
+        total_days_period = days_in_month 
     else:
         days_future = st.number_input("Días adicionales a proyectar", min_value=1, value=15)
         total_days_period = days_passed + days_future
@@ -190,14 +276,12 @@ with tab2:
         proj_spend_real = current_spend + (daily_avg_spend * days_future)
         proj_profit_real = proj_rev_real - proj_spend_real
         
-        # 2. Optimista (+15% en eficiencia de revenue o ritmo)
-        # Asumimos que aumentamos el revenue un 15% manteniendo el mismo spend proyectado, o mejoramos el ritmo.
-        # Interpretación: El ritmo de facturación mejora un 15%
+        # 2. Optimista (+15%)
         daily_rev_opt = daily_avg_revenue * 1.15
         proj_rev_opt = current_revenue + (daily_rev_opt * days_future)
-        proj_profit_opt = proj_rev_opt - proj_spend_real # Asumimos mismo gasto, mejor rendimiento
+        proj_profit_opt = proj_rev_opt - proj_spend_real 
         
-        # 3. Pesimista (-15% en ritmo)
+        # 3. Pesimista (-15%)
         daily_rev_pes = daily_avg_revenue * 0.85
         proj_rev_pes = current_revenue + (daily_rev_pes * days_future)
         proj_profit_pes = proj_rev_pes - proj_spend_real
@@ -213,19 +297,16 @@ with tab2:
         # --- GRÁFICOS Y PROYECCIONES ---
         st.markdown("### 🔮 Proyecciones al Cierre del Periodo")
         
-        # Crear DataFrame para gráfico
         data_proj = {
             'Escenario': ['Pesimista (-15%)', 'Realista (Ritmo Actual)', 'Optimista (+15%)'],
             'Facturación Proyectada': [proj_rev_pes, proj_rev_real, proj_rev_opt],
             'Profit Proyectado': [proj_profit_pes, proj_profit_real, proj_profit_opt],
-            'Color': ['#EF553B', '#636EFA', '#00CC96'] # Rojo, Azul, Verde
+            'Color': ['#EF553B', '#636EFA', '#00CC96']
         }
         df_proj = pd.DataFrame(data_proj)
 
-        # Gráfico con Plotly
         fig = go.Figure()
         
-        # Barras de Facturación
         fig.add_trace(go.Bar(
             x=df_proj['Escenario'],
             y=df_proj['Facturación Proyectada'],
@@ -236,7 +317,6 @@ with tab2:
             opacity=0.6
         ))
 
-        # Línea de Profit
         fig.add_trace(go.Scatter(
             x=df_proj['Escenario'],
             y=df_proj['Profit Proyectado'],
@@ -257,12 +337,8 @@ with tab2:
         
         st.plotly_chart(fig, use_container_width=True)
 
-        # Tabla detallada
         st.markdown("#### Detalle Numérico")
-        
-        # CORRECCIÓN: Seleccionamos solo las columnas numéricas para mostrar y formatear
         columns_to_show = ['Facturación Proyectada', 'Profit Proyectado']
-        
         st.dataframe(
             df_proj.set_index("Escenario")[columns_to_show].style.format("${:,.2f}"),
             use_container_width=True
