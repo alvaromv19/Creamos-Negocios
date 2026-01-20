@@ -136,6 +136,18 @@ with tab1:
             st.warning("❌ No se encontró información para este correo en ninguna hoja.")
         else:
             st.success(f"Resultados encontrados para: **{email_input}**")
+
+            # --- ETAPA 0: Nombre ---
+            st.markdown("NOMBRE")
+            if not lead_vol.empty:
+                Nombre = row.get('Nombre', 'S/N')
+
+                st.markdown(f"""
+                <div class="timeline-card">
+                    <b>🙍‍♂️</b> {Nombre}<br>
+
+                 </div>
+                """, unsafe_allow_html=True)
             
             # --- ETAPA 1: INGRESO (Formulario) ---
             st.markdown("#### 1️⃣ Ingreso (Formulario)")
