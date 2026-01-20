@@ -4,7 +4,7 @@ import plotly.express as px
 import numpy as np
 
 # --- 1. CONFIGURACIÓN E IMPORTACIÓN ---
-st.set_page_config(page_title="Lead Detective & Ranking", page_icon="🕵️", layout="wide")
+st.set_page_config(page_title="search lead - CN", page_icon="🕵️", layout="wide")
 
 # Estilos Neón Cyberpunk
 st.markdown("""
@@ -113,6 +113,35 @@ df_vol, df_qual, df_res = cargar_todo()
 
 # --- 4. INTERFAZ PRINCIPAL ---
 st.title("🕵️ DETECTIVE DE LEADS & RANKING")
+
+# --- INICIO DEL TOGGLE DE AYUDA ---
+with st.expander("ℹ️ GUÍA RÁPIDA: ¿CÓMO USAR ESTE DASHBOARD?"):
+    st.markdown("""
+    <div style="background-color: #111; padding: 20px; border-radius: 10px; border: 1px solid #333;">
+        <h4 style="color: #00f3ff; margin-top: 0;">🔍 Pestaña 1: Buscador de Lead</h4>
+        <p style="color: #aaa; font-size: 0.9rem; margin-bottom: 15px;">
+            El <b>Detective</b> rastrea la historia completa de un lead usando su correo.
+            <ul>
+                <li><b>Ingreso:</b> Muestra cuándo llenó el formulario y la atribución (Campaña/Anuncio).</li>
+                <li><b>Calificación:</b> Confirma si pasó el filtro de calidad.</li>
+                <li><b>Cierre:</b> Detalla el resultado de la llamada, notas del closer y monto pagado.</li>
+            </ul>
+        </p>
+        
+        <hr style="border-color: #333;">
+        
+        <h4 style="color: #0aff00; margin-top: 0;">🏆 Pestaña 2: Ranking Clientes</h4>
+        <p style="color: #aaa; font-size: 0.9rem;">
+            Lista tus mejores clientes ordenados por <b>Facturación Total (LTV)</b>.
+            <ul>
+                <li><b>Suma Inteligente:</b> Si un cliente pagó en cuotas (varias filas), aquí verás el total sumado.</li>
+                <li><b>Atribución:</b> Mira rápidamente de qué campaña vinieron tus mejores compradores.</li>
+            </ul>
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+# --- FIN DEL TOGGLE DE AYUDA ---
+
 tab1, tab2 = st.tabs(["🔍 Buscador de Lead", "🏆 Ranking Clientes"])
 
 # === TAB 1: BUSCADOR (TIMELINE) ===
