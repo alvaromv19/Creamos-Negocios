@@ -136,6 +136,27 @@ with tab1:
             st.warning("❌ No se encontró información para este correo en ninguna hoja.")
         else:
             st.success(f"Resultados encontrados para: **{email_input}**")
+
+            # --- NUEVO: OBTENER NOMBRE DEL LEAD (HEADLINE) ---
+            nombre_lead = "Cliente Desconocido"
+            
+            # Prioridad 1: Sacarlo de la hoja de Resultados (Más fiable)
+            if not lead_res.empty and 'Lead Name' in lead_res.columns:
+                 val = lead_res.iloc[0]['Lead Name']
+                 if val and str(val).lower() != 'nan': nombre_lead = str(val).title()
+            
+            # Prioridad 2: Sacarlo de la hoja de Volumen (Si no llegó a llamada)
+            elif not lead_vol.empty and 'Name' in lead_vol.columns:
+                 val = lead_vol.iloc[0]['Name']
+                 if val and str(val).lower() != 'nan': nombre_lead = str(val).title()
+            
+            # MOSTRAR EL HEADLINE NOMBRE
+            st.markdown(f"""
+            <h1 style='color:#0aff00; font-size: 2.5rem; margin-top: 10px; margin-bottom: 5px;'>
+                👤 {nombre_lead}
+            </h1>
+            <hr style="border-color: #0aff00; margin-top: 0px; margin-bottom: 30px; opacity: 0.5;">
+            """, unsafe_allow_html=True)
             
             # --- ETAPA 1: INGRESO (Formulario) ---
             st.markdown("#### 1️⃣ Ingreso (Formulario)")
