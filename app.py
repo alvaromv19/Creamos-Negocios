@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 from datetime import datetime, timedelta
-import numpy as np # Necesario para la reparación de columnas
+import numpy as np
 
 # --- 1. CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(page_title="Agency Dashboard", page_icon="🚀", layout="wide")
@@ -39,7 +39,6 @@ def reparar_desplazamiento(df):
     df_fixed = df.copy()
     col_0 = df_fixed.columns[0]
     
-    # Filas donde la columna A está vacía
     filas_malas_mask = df_fixed[col_0].isna() | (df_fixed[col_0].astype(str).str.strip() == '')
     
     if filas_malas_mask.sum() > 0 and len(df_fixed.columns) >= 9:
@@ -48,7 +47,7 @@ def reparar_desplazamiento(df):
         
         for idx in indices_malos:
             fila = valores[idx]
-            fila_corregida = np.roll(fila, -8) # Mover 8 posiciones a la izquierda
+            fila_corregida = np.roll(fila, -8) 
             fila_corregida[-8:] = np.nan 
             valores[idx] = fila_corregida
             
@@ -62,13 +61,12 @@ st.title("🚀 Creamos Negocios - Dashboard")
 def cargar_datos():
     url_ventas = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQuXaPCen61slzpr1TElxXoCROIxAgmgWT7pyWvel1dxq_Z_U1yZPrVrTbJfx9MwaL8_cluY3v2ywoB/pub?gid=0&single=true&output=csv"
     url_gastos_dic = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQGOLgPTDLie5gEbkViCbpebWfN9S_eb2h2GGlpWLjmfVgzfnwR_ncVTs4IqmKgmAFfxZTQHJlMBrIi/pub?gid=0&single=true&output=csv"
+    # Link Nuevo Budget (2026)
     url_gastos_anual = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTQKTt_taqoH2qNwWbs3t4doLsi0SuGavgdUNvpCKrqtlp5U9GaTqkTt9q-c1eWBnvPN88Qg5t0vXzK/pub?gid=692917105&single=true&output=csv"
     
-    # PROCESAR VENTAS
+    # --- PROCESAR VENTAS ---
     try:
         df_v = pd.read_csv(url_ventas)
-        
-        # 1. Aplicamos reparación por si acaso
         df_v = reparar_desplazamiento(df_v)
         
         df_v['Fecha'] = pd.to_datetime(df_v['Fecha'], dayfirst=True, errors='coerce')
@@ -79,12 +77,9 @@ def cargar_datos():
         df_v['Closer'] = df_v['Closer'].fillna("Sin Asignar").astype(str).str.strip()
         df_v['Resultado'] = df_v['Resultado'].fillna("Pendiente")
         
-        # 2. LIMPIEZA DE EMAIL (Clave para identificar únicos)
-        # Asumimos que la columna se llama 'Email'. Si tiene otro nombre, ajústalo.
         if 'Email' in df_v.columns:
             df_v['Email'] = df_v['Email'].astype(str).str.strip().str.lower()
         else:
-            # Fallback si no existe columna Email, usamos Lead Name o índice
             df_v['Email'] = df_v.index.astype(str)
 
         def clasificar_estado(texto):
@@ -109,24 +104,48 @@ def cargar_datos():
         st.error(f"Error en Ventas: {e}")
         df_v = pd.DataFrame()
 
-    # PROCESAR GASTOS
+    # --- PROCESAR GASTOS ---
     try:
+        # 1. Gastos Diciembre (Formato Viejo)
         df_g1 = pd.read_csv(url_gastos_dic)
         df_g1['Fecha'] = pd.to_datetime(df_g1['Fecha'], dayfirst=True, errors='coerce')
         if df_g1['Gasto'].dtype == 'O': df_g1['Gasto'] = df_g1['Gasto'].astype(str).str.replace(r'[$,]', '', regex=True)
         df_g1['Gasto'] = pd.to_numeric(df_g1['Gasto'], errors='coerce').fillna(0)
-        if {'Fecha', 'Gasto'}.issubset(df_g1.columns): df_g1 = df_g1[['Fecha', 'Gasto']]
         
-        df_g2 = pd.read_csv(url_gastos_anual)
-        df_g2 = df_g2.iloc[:, 0:2] 
-        df_g2.columns = ['Fecha', 'Gasto'] 
-        df_g2['Fecha'] = pd.to_datetime(df_g2['Fecha'], errors='coerce')
-        if df_g2['Gasto'].dtype == 'O': df_g2['Gasto'] = df_g2['Gasto'].astype(str).str.replace(r'[$,]', '', regex=True)
-        df_g2['Gasto'] = pd.to_numeric(df_g2['Gasto'], errors='coerce').fillna(0)
+        # Rellenamos columnas faltantes en el viejo para que coincida
+        df_g1['Clics'] = 0
+        df_g1['Visitas'] = 0
+        
+        # Seleccionamos columnas estándar
+        if {'Fecha', 'Gasto'}.issubset(df_g1.columns): 
+            df_g1 = df_g1[['Fecha', 'Gasto', 'Clics', 'Visitas']]
+        
+        # 2. Gastos Anuales (Formato Nuevo - Header en Fila 1)
+        df_g2 = pd.read_csv(url_gastos_anual) # Header=0 por defecto (correcto)
+        
+        # Aseguramos leer las 4 columnas (A, B, C, D) por posición para evitar errores de nombre
+        # Col A (0): Fecha, B (1): Gasto, C (2): Clics, D (3): Visitas
+        if len(df_g2.columns) >= 4:
+            df_g2 = df_g2.iloc[:, 0:4].copy()
+            df_g2.columns = ['Fecha', 'Gasto', 'Clics', 'Visitas'] # Renombrar estándar
+            
+            # Limpieza
+            df_g2['Fecha'] = pd.to_datetime(df_g2['Fecha'], errors='coerce')
+            
+            for col in ['Gasto', 'Clics', 'Visitas']:
+                if df_g2[col].dtype == 'O': 
+                    df_g2[col] = df_g2[col].astype(str).str.replace(r'[$,]', '', regex=True)
+                df_g2[col] = pd.to_numeric(df_g2[col], errors='coerce').fillna(0)
+        else:
+            st.warning("El archivo de Budget 2026 tiene menos de 4 columnas. Revisa el formato.")
+            df_g2 = pd.DataFrame(columns=['Fecha', 'Gasto', 'Clics', 'Visitas'])
 
+        # Unir ambos (Diciembre + 2026)
         df_g = pd.concat([df_g1, df_g2], ignore_index=True).sort_values('Fecha')
-    except Exception:
-        df_g = pd.DataFrame(columns=['Fecha', 'Gasto'])
+        
+    except Exception as e:
+        st.error(f"Error en Gastos: {e}")
+        df_g = pd.DataFrame(columns=['Fecha', 'Gasto', 'Clics', 'Visitas'])
 
     return df_v, df_g
 
@@ -176,7 +195,8 @@ df_v_filtrado = df_ventas.loc[mask_v].copy()
 if not df_gastos.empty:
     mask_g = (df_gastos['Fecha'].dt.date >= f_inicio) & (df_gastos['Fecha'].dt.date <= f_fin)
     df_g_filtrado = df_gastos.loc[mask_g].copy()
-else: df_g_filtrado = pd.DataFrame(columns=['Fecha', 'Gasto'])
+else: 
+    df_g_filtrado = pd.DataFrame(columns=['Fecha', 'Gasto', 'Clics', 'Visitas'])
 
 if closer_sel != "Todos":
     df_v_filtrado = df_v_filtrado[df_v_filtrado['Closer'] == closer_sel]
@@ -198,21 +218,14 @@ if st.sidebar.button("Aplicar Objetivos"):
     st.session_state["presupuesto_ads"] = m_ads
     st.rerun()
 
-# --- 7. CÁLCULOS PRINCIPALES (INTELIGENTES) ---
-# Sumamos todo el dinero (Monto $)
+# --- 7. CÁLCULOS PRINCIPALES ---
 facturacion = df_v_filtrado['Monto ($)'].sum()
 inversion_ads = df_g_filtrado['Gasto'].sum() if closer_sel == "Todos" else 0
 profit = facturacion - inversion_ads 
 roas = (facturacion / inversion_ads) if inversion_ads > 0 else 0
 
-# --- LÓGICA DE CLIENTES ÚNICOS (Por Email) ---
-# Total Leads = Emails únicos (no filas)
 total_leads = df_v_filtrado['Email'].nunique()
-
-# Asistencias = Emails únicos que marcaron asistencia
 total_asistencias = df_v_filtrado[df_v_filtrado['Es_Asistencia']]['Email'].nunique()
-
-# Ventas Cerradas = Emails únicos que tienen estado "✅ Venta"
 ventas_cerradas = df_v_filtrado[df_v_filtrado['Estado_Simple'] == "✅ Venta"]['Email'].nunique()
 
 tasa_asistencia = (total_asistencias / total_leads * 100) if total_leads > 0 else 0
@@ -241,7 +254,7 @@ if dias_restantes > 0:
 else:
     facturacion_necesaria_diaria = faltante_facturacion 
 
-# Gasto Ads Pacing
+# Budget Pacing
 gasto_mes_total = df_gastos[
     (df_gastos['Fecha'].dt.month == mes_actual) & 
     (df_gastos['Fecha'].dt.year == anio_actual)
@@ -292,15 +305,13 @@ st.divider()
 st.markdown("### 📞 Eficiencia Comercial")
 e1, e2, e3, e4 = st.columns(4)
 e1.metric("Leads Únicos", total_leads)
-e2.metric("Asistencias Únicas", total_asistencias, help="Clientes únicos que asistieron (aunque tengan varias filas)")
+e2.metric("Asistencias Únicas", total_asistencias, help="Clientes únicos que asistieron")
 e3.metric("Tasa Asistencia", f"{tasa_asistencia:.1f}%")
 e4.metric("Tasa Cierre", f"{tasa_cierre:.1f}%")
 
 st.markdown("---")
 st.subheader("🔍 Desglose de Leads (Widget)")
 
-# Widget Counts (Aquí seguimos contando filas para ver volumen de gestión, 
-# pero si prefieres únicos también, avísame. Por ahora lo dejé en filas para ver 'actividad')
 c_venta = len(df_v_filtrado[df_v_filtrado['Estado_Simple'] == "✅ Venta"])
 c_noshow = len(df_v_filtrado[df_v_filtrado['Estado_Simple'] == "❌ No Show"])
 c_descalif = len(df_v_filtrado[df_v_filtrado['Estado_Simple'] == "🚫 Descalificado"])
@@ -308,7 +319,7 @@ c_agendado = len(df_v_filtrado[df_v_filtrado['Estado_Simple'].isin(["📅 Re-Age
 c_seguimiento = len(df_v_filtrado[df_v_filtrado['Estado_Simple'] == "👀 Seguimiento"])
 
 w1, w2, w3, w4, w5 = st.columns(5)
-w1.metric("✅ Tx. Ventas", c_venta, help="Transacciones totales (incluye cuotas)")
+w1.metric("✅ Tx. Ventas", c_venta)
 w2.metric("👀 Seguimiento", c_seguimiento)
 w3.metric("❌ No Show", c_noshow)
 w4.metric("🚫 Descalif.", c_descalif)
@@ -331,12 +342,11 @@ tab1, tab2 = st.tabs(["🏆 Ranking Closers", "📊 Facturación vs Ads"])
 
 with tab1:
     if not df_v_filtrado.empty:
-        # AGRUPACIÓN INTELIGENTE POR CLOSER
         ranking = df_v_filtrado.groupby('Closer').apply(
             lambda x: pd.Series({
-                'Facturado': x['Monto ($)'].sum(), # Suma todo el dinero
-                'Asistencias': x.loc[x['Es_Asistencia'], 'Email'].nunique(), # Cuenta Emails únicos
-                'Ventas': x.loc[x['Estado_Simple'] == "✅ Venta", 'Email'].nunique() # Cuenta Emails únicos (Clientes)
+                'Facturado': x['Monto ($)'].sum(),
+                'Asistencias': x.loc[x['Es_Asistencia'], 'Email'].nunique(),
+                'Ventas': x.loc[x['Estado_Simple'] == "✅ Venta", 'Email'].nunique()
             })
         ).reset_index()
         
@@ -378,5 +388,3 @@ with tab2:
     fig_fin.update_traces(hovertemplate="$%{y:,.2f}") 
 
     st.plotly_chart(fig_fin, use_container_width=True)
-
-
