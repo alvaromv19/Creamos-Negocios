@@ -379,3 +379,4 @@ with tab2:
 
     st.plotly_chart(fig_fin, use_container_width=True)
 
+
